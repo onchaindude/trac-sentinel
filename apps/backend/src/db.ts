@@ -29,10 +29,15 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_results_address ON results(address, chain);
 `);
 
+// Safe migrations — no-op if columns already exist
+try { db.exec(`ALTER TABLE results ADD COLUMN source  TEXT`); } catch {}
+try { db.exec(`ALTER TABLE results ADD COLUMN node_id TEXT`); } catch {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_results_source ON results(source)`); } catch {}
+
 export function saveResult(result: AnalysisResult): void {
   const stmt = db.prepare(`
-    INSERT OR REPLACE INTO results (id, address, chain, ts, status, name, symbol, risk_level, risk_score, data)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO results (id, address, chain, ts, status, name, symbol, risk_level, risk_score, source, node_id, data)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     result.id,
@@ -44,8 +49,33 @@ export function saveResult(result: AnalysisResult): void {
     result.symbol ?? null,
     result.verdict?.risk_level ?? null,
     result.verdict?.risk_score ?? null,
+    result.source ?? 'live',
+    result.node_id ?? null,
     JSON.stringify(result),
   );
+}
+
+export function savePeerResult(result: AnalysisResult, nodeId: string): void {
+  const peerResult = { ...result, source: 'p2p' as const, node_id: nodeId };
+  saveResult(peerResult);
+}
+
+export function getFreshPeerResult(
+  address: string, chain: string, ttlMs = 3_600_000
+): AnalysisResult | null {
+  const cutoff = Date.now() - ttlMs;
+  const row = db.prepare(`
+    SELECT data FROM results
+    WHERE address = ? AND chain = ? AND status = 'complete' AND ts > ?
+    ORDER BY ts DESC LIMIT 1
+  `).get(address, chain, cutoff) as { data: string } | undefined;
+  return row ? parseRow(row.data) : null;
+}
+
+export function getPeerStats(): { p2p_results: number; unique_nodes: number } {
+  const p2p = (db.prepare(`SELECT COUNT(*) as n FROM results WHERE source = 'p2p'`).get() as { n: number }).n;
+  const nodes = (db.prepare(`SELECT COUNT(DISTINCT node_id) as n FROM results WHERE source = 'p2p' AND node_id IS NOT NULL`).get() as { n: number }).n;
+  return { p2p_results: p2p, unique_nodes: nodes };
 }
 
 function parseRow(data: string): AnalysisResult | null {

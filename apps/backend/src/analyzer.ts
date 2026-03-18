@@ -1,13 +1,14 @@
 import { checkTokenSecurity }  from './services/goplus.js';
 import { getDexData }           from './services/dexscreener.js';
 import { getContractInfo, getWalletInfo } from './services/etherscan.js';
-import { getTokenMetadata, getTokenOwners } from './services/moralis.js';
+import { getTokenMetadata, getTokenOwners } from './services/ankr.js';
 import { getSolanaTokenInfo, getSolanaHolders } from './services/helius.js';
 import { generateNarrative, type SentinelVerdict } from './services/ollama.js';
-import { getCoinGeckoData, type CoinGeckoData } from './services/coingecko.js';
+import { getCoinGeckoData, type CoinGeckoData } from './services/coinpaprika.js';
 import { scoreToken, type ScoringResult } from './scoring.js';
-import { getLatestResultForToken } from './db.js';
+import { getLatestResultForToken, getFreshPeerResult } from './db.js';
 import { checkTapProtocol } from './services/tap.js';
+import { tracNetwork } from './peer/tracNetwork.js';
 import { scanTapToken, type TapScanResult } from './services/tapScanner.js';
 import { logger } from './logger.js';
 import { withRetry } from './retry.js';
@@ -24,6 +25,7 @@ export interface AnalysisResult {
   ts:           number;
   status:       'analyzing' | 'complete' | 'error';
   source:       'live' | 'cache' | 'p2p';  // where this result came from
+  node_id?:     string;                    // sender pubkey when source === 'p2p'
   name:         string;
   symbol:       string;
   // Raw data
@@ -56,12 +58,30 @@ export async function analyzeToken(
     return analyzeTapToken(address, onProgress);
   }
 
-  // Check DB for a fresh result (survives restarts, unlike in-memory cache)
-  const dbCached = getLatestResultForToken(address, chain);
-  if (dbCached && Date.now() - dbCached.ts < CACHE_TTL_MS) {
-    const fresh = { ...dbCached, source: 'cache' as const };
+  // Peer mode: no Etherscan key = can't do live scans
+  const isPeerMode = !process.env.ETHERSCAN_API_KEY;
+
+  // Check DB for a fresh result (survives restarts, works for both live and p2p)
+  const dbCached = getFreshPeerResult(address, chain, CACHE_TTL_MS);
+  if (dbCached) {
+    const fresh = { ...dbCached, source: (dbCached.source === 'p2p' ? 'p2p' : 'cache') as AnalysisResult['source'] };
     onProgress(fresh);
     return fresh;
+  }
+
+  if (isPeerMode) {
+    const errResult: AnalysisResult = {
+      id: `${chain}:${address}:${Date.now()}`,
+      address, chain, ts: Date.now(),
+      status: 'error', source: 'p2p',
+      name: address.slice(0, 8) + '…', symbol: '???',
+      goplus: null, dex: null, coingecko: null, scoring: null,
+      tap_protocol: false, tap_scan: null, verdict: null,
+      steps: [],
+      error: 'Peer mode — no live scan API keys configured. This node receives results shared by the Trac Network. Results will appear automatically once another full node scans this token.',
+    };
+    onProgress(errResult);
+    return errResult;
   }
 
   const id    = `${chain}:${address}:${Date.now()}`;
@@ -70,7 +90,7 @@ export async function analyzeToken(
     { name: 'DEX data (DexScreener)',   status: 'pending' },
     { name: 'Contract & deployer info', status: 'pending' },
     { name: 'Token metadata',           status: 'pending' },
-    { name: 'Market data (CoinGecko)',  status: 'pending' },
+    { name: 'Market data (CoinPaprika)', status: 'pending' },
     { name: 'Risk scoring engine',      status: 'pending' },
     { name: 'AI narrative (Ollama)',    status: 'pending' },
   ];
@@ -215,8 +235,9 @@ export async function analyzeToken(
   const resolvedName   = name   || coingecko?.name   || dex?.bestPair?.baseToken.name   || 'Unknown';
   const resolvedSymbol = symbol || coingecko?.symbol || dex?.bestPair?.baseToken.symbol || '???';
 
-  // Optional: check if token ticker also exists on Bitcoin via TAP Protocol
-  const tap_protocol = await checkTapProtocol(resolvedSymbol).catch(() => false);
+  // TAP Protocol cross-chain badge is only meaningful for TAP chain scans —
+  // ticker symbols are not unique across chains so cross-checking EVM/Solana is misleading
+  const tap_protocol = false;
 
   const verdict: SentinelVerdict = {
     risk_score:  scoring.score,
@@ -241,6 +262,9 @@ export async function analyzeToken(
     symbol: resolvedSymbol,
     goplus, dex, coingecko, scoring, tap_protocol, tap_scan: null, verdict, steps,
   };
+
+  // Share result with Trac Network peers
+  tracNetwork.publish(result);
 
   return result;
 }
@@ -347,6 +371,9 @@ async function analyzeTapToken(
     goplus: null, dex: null, coingecko: null, scoring: null,
     tap_protocol: true, tap_scan, verdict, steps,
   };
+
+  // Share result with Trac Network peers
+  tracNetwork.publish(result);
 
   return result;
 }

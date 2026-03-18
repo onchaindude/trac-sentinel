@@ -83,7 +83,7 @@ async function pollResult(address: string, chain: string, maxWait = 90_000): Pro
     if (!res.ok) continue;
     const raw = await res.json().catch(() => null);
     if (!raw || typeof raw !== 'object') continue;
-    const data = raw as { status?: string; verdict?: { risk_level: string; risk_score: number; summary: string; red_flags: string[]; green_flags: string[] }; name?: string; symbol?: string; error?: string; id?: string };
+    const data = raw as { status?: string; verdict?: { risk_level: string; risk_score: number; summary: string; reasoning: string; red_flags: string[]; green_flags: string[] }; name?: string; symbol?: string; error?: string; id?: string };
 
     if (data.status === 'error') {
       return `❌ *Scan Failed*\n${data.error ?? 'Unknown error'}`;
@@ -95,20 +95,22 @@ async function pollResult(address: string, chain: string, maxWait = 90_000): Pro
       const name   = data.name || data.symbol || address.slice(0, 8);
       const reds   = Array.isArray(v.red_flags)   ? v.red_flags.slice(0, 3).map(f => `• ${f}`).join('\n') || '• None' : '• None';
       const greens = Array.isArray(v.green_flags) ? v.green_flags.slice(0, 3).map(f => `• ${f}`).join('\n') || '• None' : '• None';
-      const link   = `${process.env.SENTINEL_URL ?? 'http://localhost:4000'}/result/${encodeURIComponent(data.id ?? '')}`;
+      // Strip markdown special chars from AI text — unescaped * _ ` [ break Telegram's parser
+      const sanitize = (s: string) => s.replace(/[*_`[\]]/g, '');
+      const reasoningText = v.reasoning ? sanitize(v.reasoning).slice(0, 300) + (v.reasoning.length > 300 ? '…' : '') : '';
+      const reasoning = reasoningText ? `\n🤖 ${reasoningText}\n` : '';
 
       return [
         `${emoji} *${name}* — ${v.risk_level} (${v.risk_score}/100)`,
         ``,
-        `📋 ${v.summary}`,
-        ``,
+        `📋 ${sanitize(v.summary)}`,
+        reasoning,
         `🔴 *Red flags*`,
         reds,
         ``,
         `🟢 *Green flags*`,
         greens,
         ``,
-        `🔗 [Full report](${link})`,
         `_Powered by TracSentinel × Trac Network_`,
       ].join('\n');
     }

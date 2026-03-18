@@ -19,14 +19,15 @@ export interface AnalysisStep {
 }
 
 export interface AnalysisResult {
-  id:      string;
-  address: string;
-  chain:   Chain;
-  ts:      number;
-  status:  'analyzing' | 'complete' | 'error';
-  source:  'live' | 'cache' | 'p2p';
-  name:    string;
-  symbol:  string;
+  id:       string;
+  address:  string;
+  chain:    Chain;
+  ts:       number;
+  status:   'analyzing' | 'complete' | 'error';
+  source:   'live' | 'cache' | 'p2p';
+  node_id?: string;  // sender pubkey when source === 'p2p'
+  name:     string;
+  symbol:   string;
   verdict: SentinelVerdict | null;
   steps:   AnalysisStep[];
   error?:  string;
@@ -174,6 +175,10 @@ export function useSentinel() {
               }
               if (next) prevRiskRef.current.set(key, next);
             }
+
+          } else if (msg.type === 'p2p') {
+            // Incoming result from a Trac Network peer — insert silently (no analyzing state change)
+            upsert(msg.data as AnalysisResult);
 
           } else if (msg.type === 'error') {
             if (analyzeTimeout.current) { clearTimeout(analyzeTimeout.current); analyzeTimeout.current = null; }
