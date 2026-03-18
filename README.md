@@ -2,62 +2,56 @@
 
 **Local-first, P2P crypto rug pull detector — built on Trac Network.**
 
-TracSentinel scans token contracts across 8 blockchains and returns an instant risk verdict: honeypot detection, deployer history, liquidity checks, holder concentration, and an AI-written summary. Everything runs on your own machine — no central server, no tracking, no subscription.
-
-> **Scan before you ape.**
+Paste a token address. Get an instant, AI-powered risk verdict. Your data never leaves your machine.
 
 ---
 
 ## Why Local-First + P2P?
 
-Most token scanners are centralized web services. That means:
-- They can go down, get rate-limited, or shut down
-- They log every address you search
-- You depend on one company's uptime and honesty
-
-TracSentinel works differently:
+Most token scanners are centralized services — they log every address you search, can be rate-limited, and go down when the company does. TracSentinel is different:
 
 | | Centralized Scanner | TracSentinel |
 |---|---|---|
 | Runs on | Their servers | Your machine |
 | Your searches | Logged by them | Stay on your device |
-| Offline? | Broken | Cached results still work |
-| P2P results | Never | Instant, from other nodes |
+| Goes down? | Yes | No — it's yours |
+| P2P results | Never | Instant from other nodes |
 | Cost | Subscription / ads | Free forever |
 
-**The P2P advantage:** When another TracSentinel node has already scanned a token, you get the result in milliseconds — no API calls, no waiting. The more people run nodes, the faster and richer the shared knowledge becomes. This is crypto infrastructure that actually matches crypto values: decentralized, self-sovereign, open.
+**The P2P advantage:** When another TracSentinel node already scanned a token, you get the result instantly — no API calls, no waiting. Every node that joins makes the network faster and smarter for everyone. This is crypto infrastructure that matches crypto values: decentralized, self-sovereign, open.
 
 ---
 
-## Two Ways to Run
+## Two Modes
 
-### Peer Mode — Zero setup, just receive
-No API keys needed. Your node connects to the Trac P2P Network and receives scan results shared by Full Nodes. Already-scanned tokens load instantly. You can also subscribe to alerts via the shared Telegram bot.
+### Peer Mode — Zero config, just receive
+No API keys needed. Connect to the Trac P2P Network and receive scan results shared by Full Nodes in real time. Subscribe to the shared Telegram bot to get RUG/DANGER alerts from the whole network.
 
-**Good for:** Casual users who want P2P-powered results without running any infrastructure.
-
-### Full Node Mode — Live scan + share
-Add your API keys and your node can scan any token live, then automatically shares results back to the network. Every scan you run benefits every other Peer on the network.
-
-**Good for:** Power users, researchers, or anyone who wants the freshest data and wants to contribute to the network.
+### Full Node Mode — Scan live + share back
+Add your API keys and your node scans any token live, then automatically publishes results to the P2P network. Every scan you run benefits everyone else.
 
 ---
 
-## Features
+## What It Does
 
-- **Risk scoring engine** — deterministic 0–100 score with full explanation, no black box
-- **Honeypot detection** — via GoPlus Security
-- **Tax & trading checks** — buy/sell tax, cooldowns, transfer pause, anti-whale mechanisms
-- **Liquidity analysis** — DEX pairs, LP lock %, pool age, volume trends
-- **Holder concentration** — top-10 wallets, deployer holdings, whale alerts
-- **Deployer history** — wallet age, previous token launches, other deployments
-- **Solana-specific** — mint authority, freeze authority, metadata mutability
-- **Bitcoin TAP Protocol** — full scanner for Ordinals tokens (via local tap-reader node)
-- **Local AI narrative** — Ollama generates a human-readable summary that matches the verdict
-- **Real-time UI** — WebSocket streaming, live scan progress, scan history, watchlist
-- **Telegram alerts** — subscribe to `/subscribe` on the bot to get RUG/DANGER alerts from the whole P2P network
-- **P2P result sharing** — completed scans automatically shared with all connected nodes
-- **Trac Network integration** — live connection status, peer count, P2P result feed
+- **Multi-chain scanning** — Ethereum, BNB Chain, Polygon, Arbitrum, Base, Optimism, Solana, Bitcoin (TAP Protocol)
+- **Deterministic risk engine** — rule-based 0–100 score, fully explainable, no black box
+- **Honeypot detection** — buy/sell simulation via GoPlus Security
+- **Tax analysis** — buy/sell tax, transfer cooldown, anti-whale, trading pause detection
+- **Liquidity checks** — DEX pairs, LP lock percentage, pool age, volume trends (DexScreener)
+- **Holder concentration** — top-10 wallet analysis, deployer holdings, whale detection
+- **Deployer history** — wallet age, previous token deployments, linked contract launches
+- **Contract analysis** — source code verification, ownership renouncement, mint authority
+- **Solana-specific** — mint authority, freeze authority, metadata mutability (Helius)
+- **Bitcoin TAP Protocol** — full scanner: mint progress, holders, token-auth authority, trade count
+- **Local AI narrative** — Ollama (qwen2.5:7b) writes a human-readable summary that matches the verdict. Runs entirely on your hardware
+- **Real-time streaming** — WebSocket scan progress, step-by-step live updates in the UI
+- **Scan history** — searchable, with risk-level change alerts when you rescan
+- **Watchlist** — pin tokens, rescan in one click
+- **Batch scanning** — paste multiple addresses at once
+- **P2P result sharing** — completed scans published to the Trac Network automatically
+- **P2P metrics panel** — live view of connected peers, results received, node IDs
+- **Telegram alerts** — shared community bot: `/subscribe` once, receive RUG/DANGER alerts from any node on the network. No bot setup required
 
 ---
 
@@ -65,25 +59,25 @@ Add your API keys and your node can scan any token live, then automatically shar
 
 | Score | Level | What It Means |
 |-------|-------|---------------|
-| 0 – 25 | ✅ SAFE | Low risk signals detected |
-| 26 – 50 | ⚠️ CAUTION | Some risk factors present — research further |
-| 51 – 75 | 🔴 DANGER | Significant red flags — high caution advised |
-| 76 – 100 | ☠️ RUG | Strong rug pull indicators — avoid |
+| 0–25 | ✅ SAFE | Low risk signals |
+| 26–50 | ⚠️ CAUTION | Some risk factors — research further |
+| 51–75 | 🔴 DANGER | Significant red flags — high caution |
+| 76–100 | ☠️ RUG | Strong rug pull indicators |
 
-> Results are informational only and not financial advice. Always DYOR.
+> Not financial advice. Always do your own research.
 
 ---
 
 ## Supported Chains
 
-| Chain | Sources |
-|-------|---------|
-| Ethereum | GoPlus · DexScreener · Etherscan · Moralis · CoinGecko |
-| BNB Chain | GoPlus · DexScreener · Etherscan · Moralis · CoinGecko |
-| Polygon | GoPlus · DexScreener · Etherscan · Moralis · CoinGecko |
-| Arbitrum | GoPlus · DexScreener · Etherscan · Moralis · CoinGecko |
-| Base | GoPlus · DexScreener · Etherscan · Moralis · CoinGecko |
-| Optimism | GoPlus · DexScreener · Etherscan · Moralis · CoinGecko |
+| Chain | Data Sources |
+|-------|-------------|
+| Ethereum | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
+| BNB Chain | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
+| Polygon | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
+| Arbitrum | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
+| Base | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
+| Optimism | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
 | Solana | Helius · DexScreener · CoinGecko |
 | Bitcoin (TAP Protocol) | Local tap-reader full node |
 
@@ -91,53 +85,52 @@ Add your API keys and your node can scan any token live, then automatically shar
 
 ## Getting Started
 
-### Option A — Peer Mode (no API keys)
+### Requirements
 
-```bash
-# 1. Clone the repo
-git clone https://github.com/onchaindude/trac-sentinel.git
-cd trac-sentinel
-
-# 2. Install dependencies
-npm install
-
-# 3. Build
-npm run build
-
-# 4. Run (no .env needed)
-node apps/backend/dist/index.js
-```
-
-Open http://localhost:4000 — your node will connect to the Trac P2P Network and start receiving scan results from other nodes automatically.
+- Node.js 20+
+- For Full Node mode: API keys (see below)
+- For local AI summaries: [Ollama](https://ollama.ai) (optional but recommended)
 
 ---
 
-### Option B — Full Node Mode (with API keys)
+### Peer Mode (no API keys)
 
 ```bash
-# 1. Clone and install
+git clone https://github.com/onchaindude/trac-sentinel.git
+cd trac-sentinel
+npm install
+npm run build
+node apps/backend/dist/index.js
+```
+
+Open **http://localhost:4000** — your node connects to the Trac P2P Network and starts receiving results from other nodes automatically.
+
+---
+
+### Full Node Mode (with API keys)
+
+```bash
 git clone https://github.com/onchaindude/trac-sentinel.git
 cd trac-sentinel
 npm install
 
-# 2. Set up your environment
+# Set up your environment
 cp apps/backend/.env.example apps/backend/.env
-# Edit apps/backend/.env and add your API keys (see table below)
+# Edit apps/backend/.env and add your API keys
 
-# 3. Install Ollama for local AI summaries
-# Download from https://ollama.ai then:
+# (Optional) Install Ollama for local AI summaries
+# https://ollama.ai — then:
 ollama pull qwen2.5:7b
 
-# 4. Build and run
 npm run build
 node apps/backend/dist/index.js
 ```
 
-Open http://localhost:4000. Your node is now live — it scans tokens in real time and shares results with the P2P network.
+Open **http://localhost:4000**. Your node now scans live and shares results with the network.
 
 ---
 
-### Development Mode
+### Development
 
 ```bash
 npm run dev
@@ -149,112 +142,99 @@ npm run dev
 
 ## API Keys
 
-Full Node mode requires these free API keys. All have generous free tiers.
+All services have a free tier. Keys stay on your machine and are never shared.
 
-| Service | Purpose | Get Yours |
-|---------|---------|-----------|
-| [Etherscan](https://etherscan.io/apis) | EVM contract + deployer info | Free tier: 5 req/s |
-| [GoPlus](https://gopluslabs.io) | Honeypot + contract safety | Free tier available |
-| [Helius](https://helius.dev) | Solana token data | Free tier: 100k req/day |
-| [Moralis](https://moralis.io) | Token metadata + holder counts | Free tier available |
-| [CoinGecko](https://www.coingecko.com/en/api) | Price + market cap | Free tier: 30 req/min |
-
-Copy `apps/backend/.env.example` to `apps/backend/.env` and fill in your keys. Keys are never shared — they stay on your machine.
+| Service | Purpose | Sign Up |
+|---------|---------|---------|
+| [Etherscan](https://etherscan.io/apis) | EVM contract + deployer data | Free |
+| [GoPlus](https://gopluslabs.io) | Honeypot + contract safety | Free |
+| [Helius](https://helius.dev) | Solana token + holder data | Free · 100k req/day |
+| [Moralis](https://moralis.io) | Token metadata + holder counts | Free |
+| [CoinGecko](https://www.coingecko.com/en/api) | Price + market cap | Free · 30 req/min |
 
 ---
 
-## Telegram Alerts
+## Telegram Bot
 
-You don't need to set up your own bot. Just message the shared bot and subscribe to the P2P network alert feed:
+No setup required. The community bot is already running.
 
-1. Open Telegram and find **[@TracSentinelBot](https://t.me/TracSentinelBot)**
-2. Send `/subscribe` — you'll receive alerts whenever any node on the network detects a RUG or DANGER token
-3. Send `/unsubscribe` to stop at any time
+1. Open **[@TracSentinelBot](https://t.me/TracSentinelBot)** on Telegram
+2. Send `/subscribe` to receive RUG and DANGER alerts from the P2P network
+3. Or paste any contract address / TAP ticker for an on-demand scan
 
-**Or scan on demand:** Paste any contract address or TAP ticker directly into the bot chat.
-
-**Bot commands:**
 | Command | Description |
 |---------|-------------|
-| `/subscribe` | Receive RUG + DANGER alerts from the P2P network |
+| `/subscribe` | Get alerts when RUG/DANGER tokens are detected by any network node |
 | `/unsubscribe` | Stop alerts |
-| `/stats` | Network activity — total scans, rugs found, subscriber count |
-| Paste an address | Scan any token on demand |
+| `/stats` | Network stats — total scans, rugs found, subscriber count |
+| Paste address | Scan any token on demand |
 
 ---
 
 ## Trac P2P Network
 
-TracSentinel is built on top of the [Trac Network](https://tracsystems.io) Intercom SC-Bridge — a decentralized P2P messaging layer.
+TracSentinel is built on the [Trac Network](https://tracsystems.io) Intercom SC-Bridge. When your node completes a scan, the result is automatically published to the `tracsentinel` P2P channel. Other nodes receive it instantly and serve it from cache — no duplicate API calls.
 
-When your node completes a scan:
-1. The result is stored locally in SQLite
-2. It's automatically published to the `tracsentinel` P2P channel
-3. Any other node subscribed to that channel receives it instantly
-4. Peers never re-scan a token that was already scanned within the last hour — they use the cached P2P result instead
+To join the P2P network, add to your `.env`:
 
-To join the P2P network, add these to your `.env`:
-```
+```env
 SC_BRIDGE_URL=ws://127.0.0.1:49222
 SC_BRIDGE_TOKEN=your_token_here
 ```
 
-Get your SC-Bridge credentials from [tracsystems.io](https://tracsystems.io).
+Get your SC-Bridge credentials at [tracsystems.io](https://tracsystems.io).
 
 ---
 
-## Bitcoin TAP Protocol Support
+## Bitcoin TAP Protocol
 
-Scanning Bitcoin Ordinals tokens (TAP Protocol) requires a local [tap-reader](https://github.com/Trac-Systems/tap-reader) node. This is optional — EVM and Solana chains work without it.
+Scanning TAP Protocol tokens (Bitcoin Ordinals) requires a local [tap-reader](https://github.com/Trac-Systems/tap-reader) node.
 
-**Requirements:** ~150GB SSD, 8GB RAM, Node.js 20+
+**Requirements:** ~150GB SSD, 8GB RAM
 
 ```bash
 git clone https://github.com/Trac-Systems/tap-reader
-cd tap-reader
-npm install
-npm start
-# Syncs P2P over Bitcoin blocks — initial sync takes hours to days
+cd tap-reader && npm install && npm start
 ```
 
-Add to your `.env`:
-```
+Add to `.env`:
+```env
 TAP_READER_URL=http://localhost:5099
 ```
 
-Once synced, you can scan any TAP ticker (e.g. `TRAC`, `NAT`) directly from the TracSentinel UI.
+Once synced, scan any TAP ticker (e.g. `TRAC`, `NAT`) directly from the UI. Initial sync takes hours to days depending on your connection.
 
 ---
 
-## Running as a Background Service
-
-To keep your node running 24/7:
+## Run in the Background (24/7)
 
 ```bash
-# Install PM2
 npm install -g pm2
-
-# Run the backend
 pm2 start node --name trac-sentinel -- apps/backend/dist/index.js
-pm2 save
-pm2 startup  # auto-start on reboot
+pm2 save && pm2 startup
 ```
 
 ---
 
-## Pear App (Desktop Launcher)
+## Pear Desktop App
 
-TracSentinel includes a [Pear Runtime](https://docs.pears.com) launcher for a one-click desktop experience:
+TracSentinel includes a [Pear Runtime](https://docs.pears.com) launcher — start everything with one command, no terminal management needed:
 
 ```bash
-# Install Pear
 npm install -g pear
-
-# Run
 pear run apps/pear
 ```
 
-This starts the backend automatically, opens your browser, and handles port conflicts gracefully. If the backend crashes, it restarts it automatically.
+Automatically finds a free port, opens your browser, and restarts the backend if it crashes.
+
+---
+
+## Docker
+
+```bash
+docker compose up
+# Backend + frontend on http://localhost:4000
+```
 
 ---
 
@@ -263,38 +243,39 @@ This starts the backend automatically, opens your browser, and handles port conf
 ```
 trac-sentinel/
 ├── apps/
-│   ├── backend/               # Node.js · Express · WebSocket · TypeScript
+│   ├── backend/                   # Node.js · Express · WebSocket · TypeScript
 │   │   └── src/
-│   │       ├── analyzer.ts    # Orchestrates all data sources
-│   │       ├── scoring.ts     # Deterministic risk engine
-│   │       ├── db.ts          # SQLite (better-sqlite3)
-│   │       ├── telegram.ts    # Shared Telegram alert bot
+│   │       ├── analyzer.ts        # Orchestrates all data sources + P2P cache
+│   │       ├── scoring.ts         # Deterministic risk scoring engine
+│   │       ├── db.ts              # SQLite persistence (results + subscribers)
+│   │       ├── telegram.ts        # Shared Telegram alert bot (grammy)
 │   │       ├── peer/
-│   │       │   └── tracNetwork.ts  # Trac P2P Network client
-│   │       └── services/      # GoPlus · DexScreener · Etherscan · Moralis
-│   │                          # Helius · CoinGecko · Ollama · TAP
-│   ├── frontend/              # React · Vite · TypeScript (no UI framework)
-│   └── pear/                  # Desktop launcher (Pear Runtime)
-└── apps/backend/.env.example  # Config template
+│   │       │   └── tracNetwork.ts # Trac P2P Network client
+│   │       └── services/
+│   │           ├── goplus.ts      # Honeypot + contract safety
+│   │           ├── dexscreener.ts # Liquidity + trading pairs
+│   │           ├── etherscan.ts   # EVM contract + deployer info
+│   │           ├── moralis.ts     # Token metadata + holders
+│   │           ├── helius.ts      # Solana token + holder data
+│   │           ├── coingecko.ts   # Price + market cap
+│   │           ├── ollama.ts      # Local AI narrative generation
+│   │           └── tapScanner.ts  # Bitcoin TAP Protocol scanner
+│   ├── frontend/                  # React · Vite · TypeScript (no UI framework)
+│   │   └── src/
+│   │       ├── App.tsx            # Main dashboard + P2P metrics panel
+│   │       ├── components/
+│   │       │   ├── ResultCard.tsx # Full scan result display
+│   │       │   ├── ResultPage.tsx # Shareable result page
+│   │       │   ├── AnalyzeForm.tsx
+│   │       │   ├── RiskBadge.tsx
+│   │       │   └── StepTracker.tsx
+│   │       └── hooks/
+│   │           ├── useSentinel.ts  # WebSocket + API state
+│   │           └── useWatchlist.ts
+│   └── pear/                      # Pear Runtime desktop launcher
+├── Dockerfile
+└── docker-compose.yml
 ```
-
----
-
-## Roadmap
-
-### Coming Soon
-- Mobile-responsive UI
-- Export results as JSON / PDF
-- Risk score chart over time per token
-- Deeper Solana analysis (Jupiter, Raydium)
-
-### Planned
-- Peer reputation scoring — weight results from high-uptime nodes
-- Creator wallet tracker — flag addresses that launched previous rugs
-- Cross-chain deployer linking — same deployer on ETH/BSC/Base
-- Whale wallet alerts — notify when top holders start selling
-- Browser extension — instant risk badge on any DEX page
-- Public API for developers
 
 ---
 
@@ -302,23 +283,23 @@ trac-sentinel/
 
 ```bash
 git checkout -b feature/your-feature
-# make your changes
 git commit -m "feat: description"
 git push origin feature/your-feature
-# open a Pull Request against main
+# Open a Pull Request — never commit directly to main
 ```
-
-Please open an issue before starting large changes.
 
 ---
 
 ## Built With
 
-- [Trac Network](https://tracsystems.io) — P2P infrastructure for Bitcoin and beyond
-- [TAP Protocol](https://github.com/Trac-Systems/tap-protocol) — Bitcoin Ordinals token standard
-- [Ollama](https://ollama.ai) — Local AI inference (qwen2.5:7b)
-- [grammy](https://grammy.dev) — Telegram bot framework
-- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) — Fast local database
+| | |
+|---|---|
+| [Trac Network](https://tracsystems.io) | P2P infrastructure |
+| [TAP Protocol](https://github.com/Trac-Systems/tap-protocol) | Bitcoin Ordinals token standard |
+| [Ollama](https://ollama.ai) | Local AI inference |
+| [grammy](https://grammy.dev) | Telegram bot framework |
+| [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) | Local database |
+| Express · React · Vite · TypeScript | Core stack |
 
 ---
 
