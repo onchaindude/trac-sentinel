@@ -7,7 +7,19 @@ const SC_BRIDGE_URL   = process.env.SC_BRIDGE_URL   ?? 'ws://127.0.0.1:49222';
 const SC_BRIDGE_TOKEN = process.env.SC_BRIDGE_TOKEN ?? '';
 const CHANNEL         = 'tracsentinel';
 const VALID_CHAINS    = new Set(['eth', 'bsc', 'polygon', 'arbitrum', 'base', 'optimism', 'solana', 'tap']);
-const MAX_PAYLOAD_AGE = 10 * 60 * 1000; // reject results older than 10 minutes
+const MAX_PAYLOAD_AGE  = 10 * 60 * 1000; // reject results older than 10 minutes
+const MAX_FUTURE_SKEW  = 30 * 1000;       // reject timestamps more than 30s in future
+const MAX_PAYLOAD_BYTES = 50 * 1024;      // 50 KB hard limit
+const PEER_DEDUP_MS    = 5 * 60 * 1000;  // ignore same peer+token within 5 min
+const PUBLISH_DEDUP_MS = 60 * 60 * 1000; // don't re-publish same token within 1 hr
+
+// score ranges per risk level
+const RISK_SCORE_RANGES: Record<string, [number, number]> = {
+  RUG:     [76, 100],
+  DANGER:  [51, 75],
+  CAUTION: [26, 50],
+  SAFE:    [0,  25],
+};
 
 export interface P2PPayload {
   app:        'trac-sentinel';
@@ -23,7 +35,8 @@ export interface P2PPayload {
 
 type BridgeMsg = { type: string; [key: string]: unknown };
 
-function isValidPayload(p: unknown): p is P2PPayload {
+function isValidPayload(p: unknown, rawSize: number): p is P2PPayload {
+  if (rawSize > MAX_PAYLOAD_BYTES) return false;
   if (!p || typeof p !== 'object') return false;
   const o = p as Record<string, unknown>;
   if (o.app !== 'trac-sentinel') return false;
@@ -31,7 +44,15 @@ function isValidPayload(p: unknown): p is P2PPayload {
   if (typeof o.address !== 'string' || !o.address) return false;
   if (!VALID_CHAINS.has(o.chain as string)) return false;
   if (typeof o.score !== 'number' || o.score < 0 || o.score > 100) return false;
-  if (typeof o.ts !== 'number' || Date.now() - o.ts > MAX_PAYLOAD_AGE) return false;
+  if (typeof o.ts !== 'number') return false;
+  const now = Date.now();
+  if (now - o.ts > MAX_PAYLOAD_AGE) return false;         // too old
+  if (o.ts - now > MAX_FUTURE_SKEW) return false;         // too far in future
+  // risk_level / score consistency
+  if (typeof o.risk_level === 'string' && o.risk_level in RISK_SCORE_RANGES) {
+    const [lo, hi] = RISK_SCORE_RANGES[o.risk_level]!;
+    if (o.score < lo || o.score > hi) return false;
+  }
   if (!o.result || typeof o.result !== 'object') return false;
   return true;
 }
@@ -41,6 +62,11 @@ class TracNetwork extends EventEmitter {
   private ready           = false;
   private localPeerId:    string | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectDelay  = 1_000; // exponential backoff: 1s → 2s → … → 60s
+  // key: `${nodeId}:${chain}:${address}` → last accepted timestamp
+  private peerDedup  = new Map<string, number>();
+  // key: `${chain}:${address}` → last publish timestamp
+  private publishDedup = new Map<string, number>();
 
   connect() {
     if (this.ws) return;
@@ -56,16 +82,20 @@ class TracNetwork extends EventEmitter {
 
     ws.on('message', (raw: Buffer) => {
       try {
-        const msg = JSON.parse(raw.toString()) as BridgeMsg;
-        this._handle(msg);
+        const str = raw.toString();
+        const msg = JSON.parse(str) as BridgeMsg;
+        this._handle(msg, str.length);
       } catch { /* ignore parse errors */ }
     });
 
     ws.on('close', () => {
-      logger.warn('TracNetwork: SC-Bridge disconnected — reconnecting in 10s');
       this.ws    = null;
       this.ready = false;
-      this.reconnectTimer = setTimeout(() => this._connect(), 10_000);
+      logger.warn({ delay: this.reconnectDelay }, 'TracNetwork: SC-Bridge disconnected — reconnecting');
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectDelay = Math.min(this.reconnectDelay * 2, 60_000);
+        this._connect();
+      }, this.reconnectDelay);
     });
 
     ws.on('error', (err) => {
@@ -79,7 +109,7 @@ class TracNetwork extends EventEmitter {
     }
   }
 
-  private _handle(msg: BridgeMsg) {
+  private _handle(msg: BridgeMsg, rawSize = 0) {
     switch (msg.type) {
 
       case 'hello':
@@ -97,6 +127,7 @@ class TracNetwork extends EventEmitter {
       case 'joined':
         if (msg.channel === CHANNEL) {
           this.ready = true;
+          this.reconnectDelay = 1_000; // reset backoff on successful connect
           logger.info({ channel: CHANNEL }, 'TracNetwork: joined Intercom channel — P2P ready');
           this.emit('ready');
         }
@@ -105,8 +136,15 @@ class TracNetwork extends EventEmitter {
       case 'sidechannel_message':
         if (msg.channel === CHANNEL) {
           const payload = msg.message as unknown;
-          if (isValidPayload(payload)) {
+          if (isValidPayload(payload, rawSize)) {
             const nodeId = (msg.from as string) ?? 'unknown';
+            const dedupKey = `${nodeId}:${payload.chain}:${payload.address}`;
+            const lastSeen = this.peerDedup.get(dedupKey) ?? 0;
+            if (Date.now() - lastSeen < PEER_DEDUP_MS) {
+              logger.debug({ address: payload.address, from: nodeId }, 'TracNetwork: dedup — dropped repeated peer result');
+              break;
+            }
+            this.peerDedup.set(dedupKey, Date.now());
             logger.debug({ address: payload.address, chain: payload.chain, from: nodeId },
               'TracNetwork: received P2P scan result');
             this.emit('scan', payload, nodeId);
@@ -124,6 +162,14 @@ class TracNetwork extends EventEmitter {
 
   publish(result: AnalysisResult): boolean {
     if (!this.ready) return false;
+
+    const pubKey = `${result.chain}:${result.address}`;
+    const lastPub = this.publishDedup.get(pubKey) ?? 0;
+    if (Date.now() - lastPub < PUBLISH_DEDUP_MS) {
+      logger.debug({ address: result.address, chain: result.chain }, 'TracNetwork: skipped re-publish (dedup)');
+      return false;
+    }
+    this.publishDedup.set(pubKey, Date.now());
 
     const payload: P2PPayload = {
       app:        'trac-sentinel',

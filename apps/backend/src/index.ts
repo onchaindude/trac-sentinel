@@ -9,38 +9,53 @@ import { fileURLToPath } from 'url';
 import rateLimit        from 'express-rate-limit';
 import { analyzeToken, type Chain, type AnalysisResult } from './analyzer.js';
 import { checkOllamaHealth } from './services/ollama.js';
-import { saveResult, getResult, getAllResults, clearResults, getLatestResultForToken, getStats, getTokenHistory, getTokensByCreator, savePeerResult, getPeerStats } from './db.js';
+import { saveResult, getResult, getAllResults, clearResults, getLatestResultForToken, getStats, getTokenHistory, getTokensByCreator, savePeerResult, getPeerStats, getRecentPeers } from './db.js';
 import { logger } from './logger.js';
 import { startTelegramBot } from './telegram.js';
 import { tracNetwork } from './peer/tracNetwork.js';
 
-// ── Env validation — fail fast with a clear message ───────────────────────────
-const REQUIRED_ENV = [
-  'ETHERSCAN_API_KEY',
-  'GOPLUS_APP_KEY',
-  'HELIUS_API_KEY',
-] as const;
-
-const missing = REQUIRED_ENV.filter(k => !process.env[k]);
-if (missing.length) {
-  console.error(`\n[Startup] Missing required environment variables:\n  ${missing.join('\n  ')}\n`);
-  console.error('Copy .env.example to .env and fill in your API keys.\n');
-  process.exit(1);
+// ── Mode detection ────────────────────────────────────────────────────────────
+// Full node requires API keys. Peer mode works without them (receives P2P only).
+const isPeerMode = !process.env.ETHERSCAN_API_KEY;
+if (isPeerMode) {
+  console.log('\n[Startup] No API keys found — running in PEER MODE\n  Scan results will be received from the Trac P2P Network.\n  Add API keys to .env to enable live scanning (Full Node mode).\n');
+} else {
+  const REQUIRED_ENV = ['ETHERSCAN_API_KEY', 'GOPLUS_APP_KEY', 'HELIUS_API_KEY'] as const;
+  const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+  if (missing.length) {
+    console.error(`\n[Startup] Missing required environment variables:\n  ${missing.join('\n  ')}\n`);
+    process.exit(1);
+  }
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT = parseInt(process.env.PORT ?? '4000', 10);
+
+// ── Auto-detect a free port (4000–4019) ───────────────────────────────────────
+function findFreePort(start: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.listen(start, '127.0.0.1', () => probe.close(() => resolve(start)));
+    probe.on('error', () =>
+      start >= 4019
+        ? reject(new Error('No free port found in range 4000–4019'))
+        : findFreePort(start + 1).then(resolve, reject)
+    );
+  });
+}
+const PORT = await findFreePort(parseInt(process.env.PORT ?? '4000', 10));
 
 const app    = express();
 const server = createServer(app);
 const wss    = new WebSocketServer({ server, path: '/ws' });
 
+// Trust proxy so rate limiter sees real client IPs (not proxy IP)
+app.set('trust proxy', 1);
+
 app.use(helmet({
-  // Allow WebSocket upgrade and frontend assets
   crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: false, // handled by frontend build in prod
+  contentSecurityPolicy: false,
 }));
-app.use(cors());
+app.use(cors({ origin: true, credentials: true })); // localhost-only app — allow all local origins
 app.use(express.json({ limit: '10kb' }));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -54,6 +69,14 @@ const analyzeLimiter = rateLimit({
 
 // ── In-memory map for active (analyzing) results ──────────────────────────────
 const activeResults = new Map<string, AnalysisResult>();
+
+// TTL cleanup — remove stale entries after 5 minutes (handles hung API calls)
+setInterval(() => {
+  const cutoff = Date.now() - 5 * 60 * 1000;
+  for (const [key, val] of activeResults) {
+    if (val.ts < cutoff) activeResults.delete(key);
+  }
+}, 60_000);
 
 // ── WebSocket broadcast ───────────────────────────────────────────────────────
 function broadcast(data: unknown) {
@@ -92,6 +115,21 @@ app.get('/api/health', async (_req, res) => {
 // ── REST: Network stats ───────────────────────────────────────────────────────
 app.get('/api/stats', (_req, res) => {
   res.json({ ...getStats(), nodes_online: wss.clients.size });
+});
+
+// ── REST: P2P network metrics ─────────────────────────────────────────────────
+app.get('/api/p2p', (_req, res) => {
+  const { p2p_results, unique_nodes, last_peer_ts } = getPeerStats();
+  res.json({
+    connected:      tracNetwork.isReady(),
+    peer_id:        tracNetwork.getPeerId(),
+    channel:        'tracsentinel',
+    mode:           process.env.ETHERSCAN_API_KEY ? 'full_node' : 'peer',
+    p2p_results,
+    unique_nodes,
+    last_peer_ts,
+    recent_peers:   getRecentPeers(10),
+  });
 });
 
 // ── REST: Analyze token ───────────────────────────────────────────────────────
@@ -157,21 +195,41 @@ app.get('/api/results/:id', (req, res) => {
   res.json(result);
 });
 
+// ── Shared param validators ───────────────────────────────────────────────────
+const VALID_CHAINS_SET = new Set(['eth','bsc','polygon','arbitrum','base','optimism','solana','tap']);
+const EVM_RE_STRICT    = /^0x[0-9a-f]{40}$/i;
+const SOLANA_RE_STRICT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const TAP_RE_STRICT    = /^[a-zA-Z0-9]{3,32}$/;
+
+function validateChainAddress(chain: string, address: string): string | null {
+  if (!VALID_CHAINS_SET.has(chain)) return 'Invalid chain';
+  const clean = address.trim();
+  if (chain === 'solana' && !SOLANA_RE_STRICT.test(clean)) return 'Invalid Solana address';
+  if (chain === 'tap'    && !TAP_RE_STRICT.test(clean))    return 'Invalid TAP ticker';
+  if (!['solana','tap'].includes(chain) && !EVM_RE_STRICT.test(clean)) return 'Invalid EVM address';
+  return null;
+}
+
 // ── REST: Risk score history for a token ──────────────────────────────────────
 app.get('/api/results/:chain/:address/history', (req, res) => {
   const { chain, address } = req.params as { chain: string; address: string };
+  const err = validateChainAddress(chain, address);
+  if (err) { res.status(400).json({ error: err }); return; }
   res.json(getTokenHistory(address.toLowerCase(), chain));
 });
 
 // ── REST: Tokens by creator address ───────────────────────────────────────────
 app.get('/api/creator/:address', (req, res) => {
-  const creatorAddress = req.params.address!.toLowerCase();
-  res.json(getTokensByCreator(creatorAddress));
+  const addr = req.params.address!.trim();
+  if (!EVM_RE_STRICT.test(addr)) { res.status(400).json({ error: 'Invalid EVM address' }); return; }
+  res.json(getTokensByCreator(addr.toLowerCase()));
 });
 
 // ── REST: Get latest result for a token (used by P2P peers) ──────────────────
 app.get('/api/results/:chain/:address', (req, res) => {
   const { chain, address } = req.params as { chain: string; address: string };
+  const err = validateChainAddress(chain, address);
+  if (err) { res.status(400).json({ error: err }); return; }
   const result = getLatestResultForToken(address.toLowerCase(), chain);
   if (!result) { res.status(404).json({ error: 'Not found' }); return; }
   res.json(result);
@@ -215,3 +273,17 @@ server.listen(PORT, () => {
     });
   }
 });
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+function shutdown(signal: string) {
+  logger.info({ signal }, 'TracSentinel shutting down…');
+  tracNetwork.disconnect();
+  server.close(() => {
+    logger.info('HTTP server closed');
+    process.exit(0);
+  });
+  // Force-exit if graceful close takes too long
+  setTimeout(() => process.exit(1), 5_000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));

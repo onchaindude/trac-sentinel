@@ -21,6 +21,7 @@ const ICONS: Record<string, string> = {
 export function RiskBadge({ level, score, size = 'sm' }: Props) {
   const c = COLORS[level]!;
   const isLarge = size === 'lg';
+  const isRug   = level === 'RUG';
   return (
     <span style={{
       display:      'inline-flex',
@@ -34,6 +35,7 @@ export function RiskBadge({ level, score, size = 'sm' }: Props) {
       fontSize:     isLarge ? '18px' : '12px',
       fontWeight:   700,
       letterSpacing: '0.05em',
+      boxShadow:    isRug ? '0 0 8px rgba(239,68,68,0.5)' : undefined,
     }}>
       <span>{ICONS[level]}</span>
       <span>{level}</span>
