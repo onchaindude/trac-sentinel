@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import tracLogo                from './assets/trac-logo.svg';
 import { useSentinel }         from './hooks/useSentinel.js';
 import type { AnalysisResult } from './hooks/useSentinel.js';
 import { useWatchlist }        from './hooks/useWatchlist.js';
@@ -142,9 +143,10 @@ function HomePage() {
                 href="https://tracsystems.io"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: '#34d399', textDecoration: 'none', fontWeight: 600 }}
+                style={{ color: '#34d399', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
               >
-                Powered by Trac Network
+                <img src={tracLogo} alt="Trac" style={{ width: '11px', height: '11px' }} />
+                Trac Network
               </a>
             </div>
           </div>
@@ -173,7 +175,8 @@ function HomePage() {
             style={styles.tracBadge}
             title="Built on Trac P2P Network"
           >
-            🌐 Trac Network
+            <img src={tracLogo} alt="Trac" style={{ width: '14px', height: '14px', marginRight: '5px' }} />
+            Trac Network
           </a>
           {/* WS status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px',
@@ -226,7 +229,10 @@ function HomePage() {
 
         {/* P2P network info bar */}
         <div style={styles.p2pBar}>
-          <span style={{ color: '#34d399', fontWeight: 700, fontSize: '12px' }}>🌐 Trac P2P Network</span>
+          <span style={{ color: '#34d399', fontWeight: 700, fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <img src={tracLogo} alt="Trac" style={{ width: '13px', height: '13px' }} />
+            Trac P2P Network
+          </span>
           <span style={{ color: '#4b5563', fontSize: '11px', margin: '0 8px' }}>·</span>
           <span className="p2p-bar-text" style={{ color: '#6b7280', fontSize: '11px' }}>
             Results cached locally and shared across the P2P layer — launching with Trac Network mainnet.
@@ -400,13 +406,14 @@ function HomePage() {
             href="https://tracsystems.io"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: '#34d399', textDecoration: 'none', fontWeight: 600 }}
+            style={{ color: '#34d399', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           >
+            <img src={tracLogo} alt="Trac" style={{ width: '12px', height: '12px' }} />
             Trac P2P Network
           </a>
           {' '}·{' '}
           <a
-            href="https://github.com/Trac-Systems"
+            href="https://github.com/onchaindude/trac-sentinel"
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: '#6b7280', textDecoration: 'none' }}

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { logger } from '../logger.js';
 
 const OLLAMA_HOST  = process.env.OLLAMA_HOST  ?? 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'deepseek-r1:8b';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'qwen3:1.7b';
 
 export interface SentinelVerdict {
   risk_score:   number;          // 0-100 — from rule engine
@@ -58,7 +58,7 @@ Write ONLY a JSON object:
     const res = await axios.post(`${OLLAMA_HOST}/api/chat`, {
       model:  OLLAMA_MODEL,
       stream: false,
-      options: { temperature: 0.2, top_p: 0.9 },
+      options: { temperature: 0.2, top_p: 0.9, think: false },
       messages: [
         {
           role: 'system',
@@ -66,7 +66,7 @@ Write ONLY a JSON object:
         },
         { role: 'user', content: prompt },
       ],
-    }, { timeout: 60000 });
+    }, { timeout: 120000 });
 
     const raw = res.data?.message?.content ?? '';
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

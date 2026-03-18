@@ -9,17 +9,16 @@ import { fileURLToPath } from 'url';
 import rateLimit        from 'express-rate-limit';
 import { analyzeToken, type Chain, type AnalysisResult } from './analyzer.js';
 import { checkOllamaHealth } from './services/ollama.js';
-import { saveResult, getResult, getAllResults, clearResults, getLatestResultForToken, getStats, getTokenHistory, getTokensByCreator } from './db.js';
+import { saveResult, getResult, getAllResults, clearResults, getLatestResultForToken, getStats, getTokenHistory, getTokensByCreator, savePeerResult, getPeerStats } from './db.js';
 import { logger } from './logger.js';
 import { startTelegramBot } from './telegram.js';
+import { tracNetwork } from './peer/tracNetwork.js';
 
 // ── Env validation — fail fast with a clear message ───────────────────────────
 const REQUIRED_ENV = [
   'ETHERSCAN_API_KEY',
-  'MORALIS_API_KEY',
   'GOPLUS_APP_KEY',
   'HELIUS_API_KEY',
-  'COINGECKO_API_KEY',
 ] as const;
 
 const missing = REQUIRED_ENV.filter(k => !process.env[k]);
@@ -74,7 +73,20 @@ wss.on('connection', (ws) => {
 // ── REST: Health ──────────────────────────────────────────────────────────────
 app.get('/api/health', async (_req, res) => {
   const ollama = await checkOllamaHealth();
-  res.json({ ok: true, ollama, uptime: process.uptime() });
+  const { p2p_results, unique_nodes } = getPeerStats();
+  res.json({
+    ok: true,
+    ollama,
+    uptime: process.uptime(),
+    p2p: {
+      connected:    tracNetwork.isReady(),
+      peer_id:      tracNetwork.getPeerId(),
+      channel:      'tracsentinel',
+      p2p_results,
+      unique_nodes,
+      mode:         process.env.ETHERSCAN_API_KEY ? 'full_node' : 'peer',
+    },
+  });
 });
 
 // ── REST: Network stats ───────────────────────────────────────────────────────
@@ -188,4 +200,18 @@ if (process.env.NODE_ENV === 'production') {
 server.listen(PORT, () => {
   logger.info({ port: PORT }, `TracSentinel backend running — http://localhost:${PORT}`);
   startTelegramBot();
+  if (process.env.SC_BRIDGE_URL && process.env.SC_BRIDGE_TOKEN) {
+    tracNetwork.connect();
+
+    // Save incoming P2P scan results and broadcast to connected frontend clients
+    tracNetwork.onScan((payload, nodeId) => {
+      const result = { ...payload.result, source: 'p2p' as const, node_id: nodeId };
+      savePeerResult(result, nodeId);
+      broadcast({ type: 'p2p', data: result });
+      logger.info(
+        { address: payload.address, chain: payload.chain, score: payload.score, from: nodeId.slice(0, 16) },
+        'P2P result saved from peer',
+      );
+    });
+  }
 });

@@ -680,11 +680,16 @@ export function ResultCard({ result, isPinned, onPin, onUnpin, onScanAnother }: 
             </span>
             {result.source && (() => {
               const s = SOURCE_LABEL[result.source];
-              return s ? (
-                <span style={{ color: s.color, fontSize: '11px', fontWeight: 600 }} title={s.title}>
-                  {s.label}
+              if (!s) return null;
+              const nodeHint = result.source === 'p2p' && result.node_id
+                ? ` · node ${result.node_id.slice(0, 12)}…`
+                : '';
+              return (
+                <span style={{ color: s.color, fontSize: '11px', fontWeight: 600 }}
+                  title={result.node_id ? `${s.title}\nNode: ${result.node_id}` : s.title}>
+                  {s.label}{nodeHint}
                 </span>
-              ) : null;
+              );
             })()}
             {result.tap_protocol && (
               <span style={styles.tapBadge} title="This token also exists on Bitcoin via Trac TAP Protocol">
