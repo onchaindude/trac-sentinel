@@ -133,6 +133,35 @@ export function getTokenHistory(
   return rows.reverse(); // oldest first for charting
 }
 
+// ── Subscriber management ─────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS subscribers (
+    chat_id      INTEGER PRIMARY KEY,
+    subscribed_at INTEGER NOT NULL,
+    active        INTEGER NOT NULL DEFAULT 1
+  );
+`);
+
+export function addSubscriber(chatId: number): void {
+  db.prepare(`
+    INSERT INTO subscribers (chat_id, subscribed_at, active) VALUES (?, ?, 1)
+    ON CONFLICT(chat_id) DO UPDATE SET active = 1, subscribed_at = excluded.subscribed_at
+  `).run(chatId, Date.now());
+}
+
+export function removeSubscriber(chatId: number): void {
+  db.prepare(`UPDATE subscribers SET active = 0 WHERE chat_id = ?`).run(chatId);
+}
+
+export function getActiveSubscribers(): number[] {
+  return (db.prepare(`SELECT chat_id FROM subscribers WHERE active = 1`).all() as { chat_id: number }[])
+    .map(r => r.chat_id);
+}
+
+export function getSubscriberCount(): number {
+  return (db.prepare(`SELECT COUNT(*) as n FROM subscribers WHERE active = 1`).get() as { n: number }).n;
+}
+
 export function getTokensByCreator(creatorAddress: string, limit = 10): {
   address: string; chain: string; name: string | null; symbol: string | null;
   risk_level: string | null; risk_score: number | null; ts: number;

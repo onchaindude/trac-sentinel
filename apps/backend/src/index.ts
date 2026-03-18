@@ -9,9 +9,9 @@ import { fileURLToPath } from 'url';
 import rateLimit        from 'express-rate-limit';
 import { analyzeToken, type Chain, type AnalysisResult } from './analyzer.js';
 import { checkOllamaHealth } from './services/ollama.js';
-import { saveResult, getResult, getAllResults, clearResults, getLatestResultForToken, getStats, getTokenHistory, getTokensByCreator, savePeerResult, getPeerStats, getRecentPeers } from './db.js';
+import { saveResult, getResult, getAllResults, clearResults, getLatestResultForToken, getStats, getTokenHistory, getTokensByCreator, savePeerResult, getPeerStats, getRecentPeers, getSubscriberCount } from './db.js';
 import { logger } from './logger.js';
-import { startTelegramBot } from './telegram.js';
+import { startTelegramBot, broadcastHighRisk } from './telegram.js';
 import { tracNetwork } from './peer/tracNetwork.js';
 
 // ── Mode detection ────────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ app.get('/api/health', async (_req, res) => {
 
 // ── REST: Network stats ───────────────────────────────────────────────────────
 app.get('/api/stats', (_req, res) => {
-  res.json({ ...getStats(), nodes_online: wss.clients.size });
+  res.json({ ...getStats(), nodes_online: wss.clients.size, subscribers: getSubscriberCount() });
 });
 
 // ── REST: P2P network metrics ─────────────────────────────────────────────────
@@ -180,6 +180,7 @@ app.post('/api/analyze', analyzeLimiter, async (req, res) => {
     activeResults.delete(result.id);
     saveResult(result);
     broadcast({ type: 'complete', data: result });
+    broadcastHighRisk(result).catch(() => {});
     logger.info({ chain, address: addr, risk_level: result.verdict?.risk_level, score: result.verdict?.risk_score }, 'Analysis complete');
   } catch (err) {
     activeResults.delete(trackingId);
@@ -266,6 +267,7 @@ server.listen(PORT, () => {
       const result = { ...payload.result, source: 'p2p' as const, node_id: nodeId };
       savePeerResult(result, nodeId);
       broadcast({ type: 'p2p', data: result });
+      broadcastHighRisk(result).catch(() => {});
       logger.info(
         { address: payload.address, chain: payload.chain, score: payload.score, from: nodeId.slice(0, 16) },
         'P2P result saved from peer',
