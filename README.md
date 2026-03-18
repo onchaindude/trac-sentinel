@@ -216,16 +216,30 @@ pm2 save && pm2 startup
 
 ---
 
-## Pear Desktop App
+## Pear Terminal App
 
-TracSentinel includes a [Pear Runtime](https://docs.pears.com) launcher — start everything with one command, no terminal management needed:
+TracSentinel ships with a [Pear Runtime](https://docs.pears.com) launcher that manages the backend for you — auto-detects a free port, opens your browser, and restarts the backend if it crashes.
+
+**Step 1 — Install Pear Runtime** (one time only)
+
+Go to [pears.com](https://pears.com) and follow the install instructions for your OS. This installs the `pear` CLI.
+
+**Step 2 — Build TracSentinel** (after cloning)
 
 ```bash
-npm install -g pear
+npm install
+npm run build
+```
+
+**Step 3 — Run**
+
+```bash
 pear run apps/pear
 ```
 
-Automatically finds a free port, opens your browser, and restarts the backend if it crashes.
+That's it. The terminal shows live backend logs and opens your browser automatically.
+
+> **Coming soon:** Once published to the Pear network, the entire install becomes a single command — `pear run pear://[key]` — no cloning or building needed. Anyone with Pear installed can run TracSentinel that way.
 
 ---
 
