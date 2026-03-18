@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Environment files — NEVER commit these (contain API keys)
+.env
+.env.local
+.env.*.local
+
+# But always commit the example template
+!.env.example
+
+# Build output
+dist/
+apps/backend/dist/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Logs
+*.log
+logs/
+.pm2/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TAP Reader data (huge, node-specific)
+tapstore/

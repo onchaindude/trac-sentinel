@@ -1,0 +1,39 @@
+# TracSentinel — docker-compose
+#
+# Usage:
+#   cp apps/backend/.env.example apps/backend/.env
+#   # fill in your API keys in apps/backend/.env
+#   docker compose up --build
+#
+# To include Ollama (local AI):
+#   docker compose --profile ollama up --build
+
+services:
+  backend:
+    build: .
+    ports:
+      - "4000:4000"
+    env_file:
+      - apps/backend/.env
+    volumes:
+      # Persist SQLite DB across container restarts
+      - sentinel_data:/app/apps/backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  sentinel_data:
+  ollama_data:

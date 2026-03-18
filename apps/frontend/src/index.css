@@ -1,0 +1,36 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #030712;
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0d1117; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
+/* ── Mobile responsive ── */
+@media (max-width: 640px) {
+  .form-row         { flex-direction: column !important; }
+  .wallet-widget    { display: none !important; }
+  .trac-badge       { display: none !important; }
+  .ticker           { display: none !important; }
+  .p2p-bar-text     { display: none !important; }
+  .badge-area       { flex-direction: row !important; align-items: center !important; flex-wrap: wrap !important; }
+  .result-buttons   { flex-direction: row !important; flex-wrap: wrap !important; }
+}
+
+/* ── Skeleton pulse animation ── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.8; }
+}
+.skeleton {
+  background: #1f2937;
+  border-radius: 4px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}

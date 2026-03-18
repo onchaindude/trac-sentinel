@@ -1,0 +1,13 @@
+{
+  "name": "trac-sentinel",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=apps/backend\" \"npm run dev --workspace=apps/frontend\"",
+    "build": "npm run build --workspace=apps/backend && npm run build --workspace=apps/frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
