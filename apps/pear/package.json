@@ -1,0 +1,18 @@
+{
+  "name": "trac-sentinel",
+  "version": "1.0.0",
+  "description": "P2P Crypto Rug Pull Detector — built on Trac Network",
+  "type": "module",
+  "main": "index.js",
+  "pear": {
+    "name": "TracSentinel",
+    "type": "terminal",
+    "links": {
+      "tracsystems": "https://tracsystems.io",
+      "github":      "https://github.com/onchaindude/trac-sentinel"
+    }
+  },
+  "dependencies": {
+    "bare-subprocess": "^1.0.0"
+  }
+}

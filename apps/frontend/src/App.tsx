@@ -22,14 +22,6 @@ const CHAIN_LABEL: Record<string, string> = {
   arbitrum: 'ARB', base: 'BASE', optimism: 'OP', solana: 'SOL', tap: '₿ TAP',
 };
 
-function timeAgo(ts: number): string {
-  const age = Date.now() - ts;
-  if (age < 60_000)     return 'just now';
-  if (age < 3_600_000)  return `${Math.floor(age / 60_000)}m ago`;
-  if (age < 86_400_000) return `${Math.floor(age / 3_600_000)}h ago`;
-  return `${Math.floor(age / 86_400_000)}d ago`;
-}
-
 function HistoryRow({ result, expanded, onToggle, isLast, isPinned, onPin, onUnpin }: {
   result:    AnalysisResult;
   expanded:  boolean;
@@ -75,13 +67,42 @@ export default function App() {
 
 interface NetStats { total: number; rugs: number; dangers: number; safe: number; nodes_online: number; }
 
+interface P2PStats {
+  connected:    boolean;
+  peer_id:      string | null;
+  channel:      string;
+  mode:         'full_node' | 'peer';
+  p2p_results:  number;
+  unique_nodes: number;
+  last_peer_ts: number | null;
+  recent_peers: { node_id: string; last_seen: number; result_count: number }[];
+}
+
+function timeAgo(ts: number): string {
+  const age = Date.now() - ts;
+  if (age < 60_000)     return 'just now';
+  if (age < 3_600_000)  return `${Math.floor(age / 60_000)}m ago`;
+  if (age < 86_400_000) return `${Math.floor(age / 3_600_000)}h ago`;
+  return `${Math.floor(age / 86_400_000)}d ago`;
+}
+
+const DISCLAIMER_KEY = 'trac_sentinel_disclaimer_v1';
+
 function HomePage() {
   const { results, connected, analyzing, analyze, analyzeBatch, batchProgress, clearHistory, riskAlert, clearRiskAlert } = useSentinel();
   const { watchlist, pin, unpin, isPinned } = useWatchlist();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [histSearch, setHistSearch] = useState('');
   const [netStats, setNetStats]     = useState<NetStats | null>(null);
+  const [p2pStats, setP2pStats]     = useState<P2PStats | null>(null);
+  const [p2pOpen, setP2pOpen]       = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(() => !localStorage.getItem(DISCLAIMER_KEY));
   const formRef = useRef<HTMLDivElement>(null);
+
+  function acceptDisclaimer() {
+    localStorage.setItem(DISCLAIMER_KEY, '1');
+    setShowDisclaimer(false);
+  }
 
   // Deduplicate: one entry per chain:address, keeping most recent
   const deduped = useMemo(() => {
@@ -121,6 +142,14 @@ function HomePage() {
     return () => clearInterval(t);
   }, []);
 
+  // P2P metrics
+  useEffect(() => {
+    fetch('/api/p2p').then(r => r.json()).then(setP2pStats).catch(() => {});
+    const t = setInterval(() =>
+      fetch('/api/p2p').then(r => r.json()).then(setP2pStats).catch(() => {}), 15_000);
+    return () => clearInterval(t);
+  }, []);
+
   const toggle = (id: string) =>
     setExpandedId(prev => (prev === id ? null : id));
 
@@ -131,6 +160,28 @@ function HomePage() {
 
   return (
     <div style={styles.root}>
+      {/* DYOR Disclaimer modal */}
+      {showDisclaimer && (
+        <div style={disclaimerStyles.overlay}>
+          <div style={disclaimerStyles.modal}>
+            <div style={disclaimerStyles.icon}>🛡</div>
+            <div style={disclaimerStyles.title}>TracSentinel</div>
+            <div style={disclaimerStyles.subtitle}>P2P Crypto Risk Scanner</div>
+            <div style={disclaimerStyles.body}>
+              TracSentinel is a community-run analysis tool. Scan results are{' '}
+              <strong>not financial advice</strong> and do not guarantee safety.
+              Rug pulls and scams can evade automated detection.
+            </div>
+            <div style={disclaimerStyles.dyor}>
+              Always DYOR — Do Your Own Research.
+            </div>
+            <button style={disclaimerStyles.btn} onClick={acceptDisclaimer}>
+              I understand — Let's go
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header style={styles.header}>
         <div style={styles.logo}>
@@ -227,26 +278,104 @@ function HomePage() {
           </div>
         )}
 
-        {/* P2P network info bar */}
-        <div style={styles.p2pBar}>
-          <span style={{ color: '#34d399', fontWeight: 700, fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            <img src={tracLogo} alt="Trac" style={{ width: '13px', height: '13px' }} />
-            Trac P2P Network
-          </span>
-          <span style={{ color: '#4b5563', fontSize: '11px', margin: '0 8px' }}>·</span>
-          <span className="p2p-bar-text" style={{ color: '#6b7280', fontSize: '11px' }}>
-            Results cached locally and shared across the P2P layer — launching with Trac Network mainnet.
-          </span>
-          <span style={{ color: '#4b5563', fontSize: '11px', margin: '0 8px' }}>·</span>
-          <a
-            href="https://tracsystems.io"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: '#34d399', fontSize: '11px', textDecoration: 'none' }}
-          >
-            Learn about Trac →
-          </a>
-        </div>
+        {/* P2P network panel */}
+        {p2pStats && (
+          <div style={styles.p2pBar}>
+            {/* Header row — always visible */}
+            <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ color: '#34d399', fontWeight: 700, fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <img src={tracLogo} alt="Trac" style={{ width: '13px', height: '13px' }} />
+                Trac P2P Network
+              </span>
+              {/* live dot */}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px',
+                color: p2pStats.connected ? '#4ade80' : '#f87171' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%',
+                  background: p2pStats.connected ? '#4ade80' : '#f87171', display: 'inline-block',
+                  boxShadow: p2pStats.connected ? '0 0 4px #4ade80' : 'none' }} />
+                {p2pStats.connected ? 'Connected' : 'Disconnected'}
+              </span>
+              <span style={{ color: '#4b5563', fontSize: '11px' }}>·</span>
+              <span style={{ color: '#6b7280', fontSize: '11px' }}>
+                <span style={{ color: '#e2e8f0', fontWeight: 700 }}>{p2pStats.unique_nodes}</span> peers seen
+              </span>
+              <span style={{ color: '#4b5563', fontSize: '11px' }}>·</span>
+              <span style={{ color: '#6b7280', fontSize: '11px' }}>
+                <span style={{ color: '#e2e8f0', fontWeight: 700 }}>{p2pStats.p2p_results}</span> P2P results
+              </span>
+              {p2pStats.last_peer_ts && (
+                <>
+                  <span style={{ color: '#4b5563', fontSize: '11px' }}>·</span>
+                  <span style={{ color: '#6b7280', fontSize: '11px' }}>
+                    last activity: <span style={{ color: '#a78bfa' }}>{timeAgo(p2pStats.last_peer_ts)}</span>
+                  </span>
+                </>
+              )}
+              <span style={{ color: '#4b5563', fontSize: '11px' }}>·</span>
+              <span style={{ color: '#6b7280', fontSize: '11px' }}>
+                mode: <span style={{ color: p2pStats.mode === 'full_node' ? '#34d399' : '#60a5fa', fontWeight: 600 }}>
+                  {p2pStats.mode === 'full_node' ? 'Full Node' : 'Peer'}
+                </span>
+              </span>
+              <button
+                onClick={() => setP2pOpen(o => !o)}
+                style={{ marginLeft: 'auto', background: 'transparent', border: 'none',
+                  color: '#4b5563', fontSize: '11px', cursor: 'pointer', padding: '0 4px' }}
+              >
+                {p2pOpen ? '▲ hide' : '▼ details'}
+              </button>
+            </div>
+
+            {/* Expanded details */}
+            {p2pOpen && (
+              <div style={{ width: '100%', marginTop: '10px', borderTop: '1px solid #065f46', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Our node ID */}
+                {p2pStats.peer_id && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: '#4b5563', fontSize: '11px', minWidth: '80px' }}>Your node</span>
+                    <code style={{ color: '#34d399', fontSize: '11px', background: '#011a12',
+                      padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>
+                      {p2pStats.peer_id.slice(0, 20)}…{p2pStats.peer_id.slice(-8)}
+                    </code>
+                    <span style={{ color: '#374151', fontSize: '10px' }}>channel: {p2pStats.channel}</span>
+                  </div>
+                )}
+
+                {/* Peer list */}
+                {p2pStats.recent_peers.length > 0 ? (
+                  <div>
+                    <div style={{ color: '#4b5563', fontSize: '10px', fontWeight: 700,
+                      letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                      Peers seen
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {p2pStats.recent_peers.map(peer => (
+                        <div key={peer.node_id} style={{ display: 'flex', alignItems: 'center',
+                          gap: '10px', fontSize: '11px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%',
+                            background: '#34d399', flexShrink: 0 }} />
+                          <code style={{ color: '#6b7280', fontFamily: 'monospace', fontSize: '11px' }}>
+                            {peer.node_id.slice(0, 16)}…{peer.node_id.slice(-6)}
+                          </code>
+                          <span style={{ color: '#374151' }}>
+                            {peer.result_count} result{peer.result_count !== 1 ? 's' : ''}
+                          </span>
+                          <span style={{ color: '#374151', marginLeft: 'auto' }}>
+                            {timeAgo(peer.last_seen)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ color: '#374151', fontSize: '11px', fontStyle: 'italic' }}>
+                    No peer activity yet — results from other nodes will appear here once they scan tokens.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Recently scanned ticker */}
         {history.length > 0 && (
@@ -437,6 +566,37 @@ function HomePage() {
 
 const riskColors: Record<string, string> = {
   SAFE: '#4ade80', CAUTION: '#fbbf24', DANGER: '#f97316', RUG: '#ef4444',
+};
+
+const disclaimerStyles: Record<string, React.CSSProperties> = {
+  overlay: {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 1000, backdropFilter: 'blur(4px)',
+  },
+  modal: {
+    background: '#111827', border: '1px solid #1f2937',
+    borderRadius: '16px', padding: '36px 32px', maxWidth: '420px',
+    width: '90%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+  },
+  icon:     { fontSize: '40px', marginBottom: '12px' },
+  title:    { fontSize: '22px', fontWeight: 700, color: '#e2e8f0', marginBottom: '4px' },
+  subtitle: { fontSize: '13px', color: '#6b7280', marginBottom: '20px' },
+  body: {
+    fontSize: '13px', color: '#9ca3af', lineHeight: 1.7,
+    marginBottom: '14px', padding: '0 4px',
+  },
+  dyor: {
+    fontSize: '13px', fontWeight: 700, color: '#fbbf24',
+    marginBottom: '24px',
+  },
+  btn: {
+    background: '#065f46', border: '1px solid #059669',
+    borderRadius: '10px', color: '#34d399',
+    fontSize: '14px', fontWeight: 700,
+    padding: '12px 32px', cursor: 'pointer',
+    fontFamily: 'inherit', width: '100%',
+  },
 };
 
 const histStyles: Record<string, React.CSSProperties> = {

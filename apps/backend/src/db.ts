@@ -72,10 +72,22 @@ export function getFreshPeerResult(
   return row ? parseRow(row.data) : null;
 }
 
-export function getPeerStats(): { p2p_results: number; unique_nodes: number } {
-  const p2p = (db.prepare(`SELECT COUNT(*) as n FROM results WHERE source = 'p2p'`).get() as { n: number }).n;
+export function getPeerStats(): { p2p_results: number; unique_nodes: number; last_peer_ts: number | null } {
+  const p2p   = (db.prepare(`SELECT COUNT(*) as n FROM results WHERE source = 'p2p'`).get() as { n: number }).n;
   const nodes = (db.prepare(`SELECT COUNT(DISTINCT node_id) as n FROM results WHERE source = 'p2p' AND node_id IS NOT NULL`).get() as { n: number }).n;
-  return { p2p_results: p2p, unique_nodes: nodes };
+  const last  = (db.prepare(`SELECT MAX(ts) as t FROM results WHERE source = 'p2p'`).get() as { t: number | null }).t;
+  return { p2p_results: p2p, unique_nodes: nodes, last_peer_ts: last };
+}
+
+export function getRecentPeers(limit = 10): { node_id: string; last_seen: number; result_count: number }[] {
+  return db.prepare(`
+    SELECT node_id, MAX(ts) as last_seen, COUNT(*) as result_count
+    FROM results
+    WHERE source = 'p2p' AND node_id IS NOT NULL
+    GROUP BY node_id
+    ORDER BY last_seen DESC
+    LIMIT ?
+  `).all(limit) as { node_id: string; last_seen: number; result_count: number }[];
 }
 
 function parseRow(data: string): AnalysisResult | null {
