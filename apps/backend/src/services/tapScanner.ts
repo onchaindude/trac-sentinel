@@ -1,21 +1,8 @@
-import axios from 'axios';
 import { logger } from '../logger.js';
-
-const TAP_READER_URL = process.env.TAP_READER_URL ?? 'http://localhost:5099';
-
-async function tapGet<T>(path: string): Promise<T | null> {
-  try {
-    const res = await axios.get(`${TAP_READER_URL}${path}`, { timeout: 8000 });
-    // TAP Reader wraps responses in { result } or { data }
-    const body = res.data;
-    if (body && 'result' in body) return body.result as T;
-    if (body && 'data'   in body) return body.data   as T;
-    return null;
-  } catch (err) {
-    logger.debug({ path, err }, 'TAP Reader request failed');
-    return null;
-  }
-}
+import {
+  getDeployment, getMintTokensLeft, getHoldersLength, getHolders,
+  getBalance, getAccountAuthList, getTickerTradesLength,
+} from './tapApi.js';
 
 export interface TapTopHolder {
   address:      string;
@@ -49,15 +36,17 @@ export interface TapScanResult {
   risk_level:         'SAFE' | 'CAUTION' | 'DANGER' | 'RUG';
 }
 
+// TAP scanning is always available — uses public API at tap.trac.network
+// Local tap-reader (TAP_READER_URL) is used as fallback if set.
 export function tapReaderAvailable(): boolean {
-  return !!process.env.TAP_READER_URL;
+  return true;
 }
 
 export async function scanTapToken(ticker: string): Promise<TapScanResult | null> {
   const tick = ticker.toLowerCase();
 
   // ── 1. Deployment info ────────────────────────────────────────────
-  const deployment = await tapGet<Record<string, unknown>>(`/getDeployment/${encodeURIComponent(tick)}`);
+  const deployment = await getDeployment(tick);
   if (!deployment) {
     logger.warn({ ticker }, 'TAP deployment not found');
     return null;
@@ -71,7 +60,7 @@ export async function scanTapToken(ticker: string): Promise<TapScanResult | null
   const inscriptionId  = String(deployment.ins  ?? '');
 
   // ── 2. Mint progress ──────────────────────────────────────────────
-  const mintLeft = await tapGet<string>(`/getMintTokensLeft/${encodeURIComponent(tick)}`) ?? '0';
+  const mintLeft = await getMintTokensLeft(tick) ?? '0';
 
   let mintProgressPct = 0;
   let fullyMinted     = false;
@@ -86,10 +75,8 @@ export async function scanTapToken(ticker: string): Promise<TapScanResult | null
   } catch { /* BigInt parse error — keep defaults */ }
 
   // ── 3. Holders ───────────────────────────────────────────────────
-  const holderCount = await tapGet<number>(`/getHoldersLength/${encodeURIComponent(tick)}`) ?? 0;
-  const rawHolders  = await tapGet<{ address: string; balance: string; transferable?: string }[]>(
-    `/getHolders/${encodeURIComponent(tick)}?offset=0&max=10`
-  ) ?? [];
+  const holderCount = await getHoldersLength(tick);
+  const rawHolders  = await getHolders(tick, 0, 10);
 
   let top10HolderPct = 0;
   const topHolders: TapTopHolder[] = rawHolders.map(h => {
@@ -106,9 +93,9 @@ export async function scanTapToken(ticker: string): Promise<TapScanResult | null
   // ── 4. Deployer holdings ──────────────────────────────────────────
   let deployerHoldsPct = 0;
   if (deployerAddr) {
-    const deployerBal = await tapGet<string>(`/getBalance/${deployerAddr}/${encodeURIComponent(tick)}`) ?? '0';
+    const deployerBal = await getBalance(deployerAddr, tick);
     try {
-      const maxBig = BigInt(maxSupply  || '0');
+      const maxBig = BigInt(maxSupply   || '0');
       const balBig = BigInt(deployerBal || '0');
       if (maxBig > BigInt(0)) deployerHoldsPct = Number(balBig * BigInt(10000) / maxBig) / 100;
     } catch { /* ignore */ }
@@ -119,16 +106,14 @@ export async function scanTapToken(ticker: string): Promise<TapScanResult | null
   let tokenAuthCount     = 0;
   let tokenAuthCoversAll = false;
   if (deployerAddr) {
-    const authList = await tapGet<{ auth?: string[] }[]>(
-      `/getAccountAuthList/${deployerAddr}?offset=0&max=20`
-    ) ?? [];
+    const authList = await getAccountAuthList(deployerAddr, 0, 20);
     tokenAuthCount     = authList.length;
     hasTokenAuth       = tokenAuthCount > 0;
     tokenAuthCoversAll = authList.some(a => !a.auth || a.auth.length === 0);
   }
 
   // ── 6. Trading activity ───────────────────────────────────────────
-  const tradeCount = await tapGet<number>(`/getTickerTradesListLength/${encodeURIComponent(tick)}`) ?? 0;
+  const tradeCount = await getTickerTradesLength(tick);
 
   // ── 7. Risk signals & scoring ─────────────────────────────────────
   const risks:     string[] = [];

@@ -79,7 +79,7 @@ Add your API keys and your node scans any token live, then automatically publish
 | Base | GoPlus · DexScreener · Etherscan V2 · Ankr · CoinPaprika |
 | Optimism | GoPlus · DexScreener · Etherscan V2 · Ankr · CoinPaprika |
 | Solana | Helius · DexScreener · CoinPaprika |
-| Bitcoin (TAP Protocol) | Local tap-reader full node |
+| Bitcoin (TAP Protocol) | tap.trac.network (public API) · Local tap-reader (optional) |
 
 ---
 
@@ -272,27 +272,19 @@ Edit it to add your API keys. Without them, the node runs in Peer Mode and still
 
 ## Bitcoin TAP Protocol
 
-TAP Protocol is a Bitcoin Ordinals token standard by [Trac Systems](https://tracsystems.io). Because it runs on Bitcoin (not an EVM chain or Solana), there is no centralized API — data comes from a local [tap-reader](https://github.com/Trac-Systems/tap-reader) full node that you run yourself.
+TAP Protocol scanning works out of the box — no setup needed. TracSentinel uses the official public API at [tap.trac.network](https://tap.trac.network) hosted by Trac Systems (free, no key required).
 
-**This is completely optional.** All 7 other chains (ETH, BNB, Polygon, Arbitrum, Base, Optimism, Solana) work without it. Only add this if you specifically want to scan TAP tokens like `TRAC` or `NAT`.
+Scan any TAP ticker (e.g. `TRAC`, `NAT`) directly from the UI.
 
-**Requirements:**
-- ~150 GB SSD (Bitcoin Ordinals index)
-- 8 GB RAM
-- Node.js 20+
-- Initial sync takes hours to days (one time)
+**Optional: run your own tap-reader node**
 
-```bash
-git clone https://github.com/Trac-Systems/tap-reader
-cd tap-reader && npm install && npm start
-```
+If you want to use a local [tap-reader](https://github.com/Trac-Systems/tap-reader) node instead (for privacy or reliability), set it in `.env` and it will be used as a fallback:
 
-Add to `.env`:
 ```env
 TAP_READER_URL=http://localhost:5099
 ```
 
-Once synced, scan any TAP ticker (e.g. `TRAC`, `NAT`) directly from the UI.
+Running your own node requires ~150 GB SSD, 8 GB RAM, Node.js 20+, and an initial sync of hours to days. Most users won't need this.
 
 ---
 
