@@ -106,7 +106,7 @@ npm install && npm run build
 NODE_ENV=production node apps/backend/dist/index.js
 ```
 
-Your terminal will print the URL (auto-detects a free port starting at 4000). Open it in your browser. P2P sharing requires Intercom — see the [Trac P2P Network](#trac-p2p-network) section, or run via Pear for automatic setup.
+Your terminal will print the URL (auto-detects a free port starting at 4000). Open it in your browser. P2P is set up automatically on first start if [Pear Runtime](https://pears.com) is installed.
 
 ---
 
@@ -129,7 +129,7 @@ npm run build
 NODE_ENV=production node apps/backend/dist/index.js
 ```
 
-Your terminal will print the URL. Open it — your node scans live. P2P sharing requires Intercom — see the [Trac P2P Network](#trac-p2p-network) section.
+Your terminal will print the URL. Open it — your node scans live and shares results. P2P is set up automatically on first start if [Pear Runtime](https://pears.com) is installed.
 
 ---
 
@@ -215,25 +215,15 @@ NAT tap
 
 ## Trac P2P Network
 
-TracSentinel connects to the [Trac Network](https://tracsystems.io) via [Trac Intercom](https://github.com/Trac-Systems/intercom) — a local P2P bridge that links your node to the network.
+TracSentinel uses [Trac Intercom](https://github.com/Trac-Systems/intercom) as its P2P bridge. **You don't need to set anything up** — P2P is configured automatically on first launch, whether you run via Pear or manually.
 
-**When running via Pear:** P2P is set up automatically on first launch. No configuration needed — Intercom is cloned, started, and wired up behind the scenes.
+On startup, if P2P isn't already configured, TracSentinel will:
+1. Clone Intercom to `~/.config/trac-sentinel/intercom/` (once)
+2. Generate a random token
+3. Start Intercom in the background
+4. Save the config to your `.env` for future restarts
 
-**When running manually:** P2P is optional. Without it, TracSentinel works as a local-only scanner — scanning, AI summaries, Telegram bot, history, and watchlist all work. To enable P2P:
-
-1. Clone and run [Trac Intercom](https://github.com/Trac-Systems/intercom) — pass a token you generate yourself:
-   ```bash
-   # generate a token (any random string works)
-   TOKEN=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-   pear run . --sc-bridge --sc-bridge-token $TOKEN --sc-bridge-port 49222 --sidechannel tracsentinel --sidechannel-auto-join 1
-   ```
-2. Add the same token to your `.env`:
-   ```env
-   SC_BRIDGE_URL=ws://127.0.0.1:49222
-   SC_BRIDGE_TOKEN=<same token from above>
-   ```
-
-The token is just a shared secret between Intercom and TracSentinel — you create it, nothing is issued externally.
+The only requirement is [Pear Runtime](https://pears.com) — TracSentinel uses it to run Intercom. If Pear isn't installed, the app works as a local-only scanner and everything else still functions.
 
 **What P2P adds:** Your node joins the `tracsentinel` channel. Completed scans are published to the network automatically, and results from other nodes arrive instantly without any API calls.
 

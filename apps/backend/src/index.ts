@@ -5,6 +5,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import cors             from 'cors';
 import helmet           from 'helmet';
 import path             from 'path';
+import fs               from 'fs';
+import os               from 'os';
+import crypto           from 'crypto';
+import { execFileSync, spawn as spawnProcess } from 'child_process';
 import { fileURLToPath } from 'url';
 import rateLimit        from 'express-rate-limit';
 import { analyzeToken, type Chain, type AnalysisResult } from './analyzer.js';
@@ -255,6 +259,85 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(dist));
   app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
 }
+
+// ── Auto-setup Trac Intercom for P2P (runs on every startup if not yet configured) ──
+async function autoSetupIntercom(): Promise<void> {
+  if (process.env.SC_BRIDGE_URL && process.env.SC_BRIDGE_TOKEN) return; // already configured
+
+  // Find pear binary
+  const pearCandidates = process.platform === 'darwin'
+    ? [
+        path.join(os.homedir(), 'Library', 'Application Support', 'pear', 'bin', 'pear'),
+        path.join(os.homedir(), '.config', 'pear', 'bin', 'pear'),
+      ]
+    : [
+        path.join(os.homedir(), '.config', 'pear', 'bin', 'pear'),
+        '/usr/local/bin/pear',
+      ];
+
+  let pearBin: string | null = null;
+  for (const p of pearCandidates) {
+    if (fs.existsSync(p)) { pearBin = p; break; }
+  }
+  if (!pearBin) {
+    try { execFileSync('pear', ['--version'], { stdio: 'ignore' }); pearBin = 'pear'; }
+    catch {}
+  }
+  if (!pearBin) {
+    logger.info('Pear Runtime not found — P2P disabled. Install from https://pears.com to enable.');
+    return;
+  }
+
+  // Clone Intercom if not already present
+  const intercomDir = path.join(os.homedir(), '.config', 'trac-sentinel', 'intercom');
+  if (!fs.existsSync(path.join(intercomDir, 'package.json'))) {
+    logger.info('Setting up Trac Intercom for P2P (one time)…');
+    try {
+      fs.mkdirSync(path.join(os.homedir(), '.config', 'trac-sentinel'), { recursive: true });
+      execFileSync('git', ['clone', '--depth=1', 'https://github.com/Trac-Systems/intercom.git', intercomDir], { stdio: 'pipe' });
+    } catch (err) {
+      logger.warn({ err }, 'Could not clone Intercom — P2P disabled');
+      return;
+    }
+  }
+
+  // Generate token, set in process.env, persist to .env for future restarts
+  const token   = crypto.randomBytes(32).toString('hex');
+  const envFile = path.join(__dirname, '../.env'); // apps/backend/.env
+
+  process.env.SC_BRIDGE_URL   = 'ws://127.0.0.1:49222';
+  process.env.SC_BRIDGE_TOKEN = token;
+
+  try {
+    let text = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '';
+    const upsert = (key: string, val: string) => {
+      const re = new RegExp(`^${key}=.*$`, 'm');
+      text = re.test(text) ? text.replace(re, `${key}=${val}`) : text.trimEnd() + `\n${key}=${val}\n`;
+    };
+    upsert('SC_BRIDGE_URL', 'ws://127.0.0.1:49222');
+    upsert('SC_BRIDGE_TOKEN', token);
+    fs.writeFileSync(envFile, text);
+  } catch { /* non-fatal — token already set in process.env */ }
+
+  // Start Intercom
+  try {
+    const proc = spawnProcess(pearBin, [
+      'run', intercomDir,
+      '--peer-store-name',       'trac-sentinel-peer',
+      '--sc-bridge',
+      '--sc-bridge-token',       token,
+      '--sc-bridge-port',        '49222',
+      '--sidechannel',           'tracsentinel',
+      '--sidechannel-auto-join', '1',
+    ], { stdio: 'ignore', detached: false });
+    proc.on('error', () => {});
+    logger.info('Trac Intercom started — P2P connecting…');
+  } catch (err) {
+    logger.warn({ err }, 'Failed to start Intercom — P2P disabled');
+  }
+}
+
+await autoSetupIntercom();
 
 server.listen(PORT, () => {
   logger.info({ port: PORT }, `TracSentinel backend running — http://localhost:${PORT}`);
