@@ -235,9 +235,11 @@ pear run pear://cx8ohu8zmgg6cijjfkzinu4o1b4jpnhjsgfmmsyhotjn1x8zbego
 **What happens on first launch (~5–10 min, one time only):**
 1. Downloads the TracSentinel source from GitHub
 2. Runs `npm install` + builds the backend
-3. Installs [Ollama](https://ollama.ai) (local AI) if not already on your system
-4. Downloads the `qwen2.5:7b` AI model (~4.7 GB)
+3. Installs [Ollama](https://ollama.ai) if not already on your system (skipped if you have it)
+4. Downloads `qwen2.5:7b` (~4.7 GB) — only if you don't already have a model configured
 5. Shows you where to add API keys, then starts
+
+> **Already have Ollama?** Set `OLLAMA_MODEL=your-model` in your `.env` file — TracSentinel will use whatever model you have installed. Any Ollama-compatible model works.
 
 After setup, every launch is instant. Your browser opens automatically. The terminal shows your port — use that URL.
 

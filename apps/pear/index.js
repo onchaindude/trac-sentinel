@@ -87,38 +87,49 @@ async function bootstrap() {
     if (fs.existsSync(example)) fs.copyFileSync(example, ENV_FILE);
   }
 
-  // ── Install Ollama if not present ────────────────────────────────────────────
+  // ── Ollama: install if missing, pull default model only if needed ─────────────
   let ollamaInstalled = false;
   try { execFileSync('ollama', ['--version'], { stdio: 'ignore' }); ollamaInstalled = true; }
   catch {}
 
-  if (!ollamaInstalled) {
+  if (ollamaInstalled) {
+    console.log(green('  ✓ Ollama already installed'));
+  } else {
     console.log(cyan('\n  ⚙ Installing Ollama (local AI)…'));
     if (process.platform === 'win32') {
       console.log(yellow('  → Windows: download Ollama from https://ollama.ai and re-run.'));
       console.log(yellow('    AI summaries will be disabled until Ollama is installed.\n'));
     } else {
       try {
-        // Official Ollama install script — works on macOS and Linux
         execFileSync('sh', ['-c', 'curl -fsSL https://ollama.ai/install.sh | sh'], { stdio: 'inherit' });
         ollamaInstalled = true;
       } catch {
-        console.log(yellow('  → Could not auto-install Ollama. Download from https://ollama.ai'));
-        console.log(yellow('    AI summaries will be disabled until installed.\n'));
+        console.log(yellow('  → Could not auto-install Ollama. Get it at https://ollama.ai'));
+        console.log(yellow('    AI summaries disabled until installed.\n'));
       }
     }
   }
 
   if (ollamaInstalled) {
+    // Read the model from .env — respect whatever the user has configured
+    let configuredModel = 'qwen2.5:7b'; // default
+    if (fs.existsSync(ENV_FILE)) {
+      const envText = fs.readFileSync(ENV_FILE, 'utf8');
+      const match   = envText.match(/^OLLAMA_MODEL=(.+)$/m);
+      if (match && match[1].trim()) configuredModel = match[1].trim();
+    }
+
     try {
-      // Check if model already pulled
-      const models = execFileSync('ollama', ['list'], { encoding: 'utf8' });
-      if (!models.includes('qwen2.5:7b')) {
-        console.log(cyan('\n  ⚙ Downloading AI model (qwen2.5:7b, ~4.7GB — one time only)…'));
-        execFileSync('ollama', ['pull', 'qwen2.5:7b'], { stdio: 'inherit' });
+      const installedModels = execFileSync('ollama', ['list'], { encoding: 'utf8' });
+      if (installedModels.includes(configuredModel.split(':')[0])) {
+        console.log(green(`  ✓ Ollama model ready: ${configuredModel}`));
+      } else {
+        console.log(cyan(`\n  ⚙ Downloading AI model (${configuredModel})…`));
+        console.log(cyan('    This is a one-time download — change OLLAMA_MODEL in .env to use a different model.\n'));
+        execFileSync('ollama', ['pull', configuredModel], { stdio: 'inherit' });
       }
     } catch {
-      console.log(yellow('  → Could not pull AI model — AI summaries will be limited.\n'));
+      console.log(yellow(`  → Could not pull model "${configuredModel}". AI summaries may be limited.\n`));
     }
   }
 
