@@ -54,8 +54,10 @@ export function AnalyzeForm({ onAnalyze, onBatch, analyzing, stepLabel, batchPro
   const [batchMode, setBatch]   = useState(false);
   const [batchText, setBatchText] = useState('');
 
-  const validationError = touched ? validateAddress(address.trim(), chain) : null;
-  const valid  = !validateAddress(address.trim(), chain);
+  // For TAP, take the first word only — users often type "TRAC tap" naturally
+  const normalizedAddress = chain === 'tap' ? address.trim().split(/\s+/)[0] ?? '' : address.trim();
+  const validationError = touched ? validateAddress(normalizedAddress, chain) : null;
+  const valid  = !validateAddress(normalizedAddress, chain);
   const error  = validationError ?? apiError;
 
   const batchItems  = parseBatch(batchText, chain);
@@ -69,8 +71,8 @@ export function AnalyzeForm({ onAnalyze, onBatch, analyzing, stepLabel, batchPro
       await onBatch(batchItems);
     } else {
       setTouched(true);
-      if (!address.trim() || !valid) return;
-      const err = await onAnalyze(address.trim(), chain);
+      if (!normalizedAddress || !valid) return;
+      const err = await onAnalyze(normalizedAddress, chain);
       if (err) setApiError(err);
     }
   };

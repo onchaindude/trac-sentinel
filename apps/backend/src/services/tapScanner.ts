@@ -36,8 +36,7 @@ export interface TapScanResult {
   risk_level:         'SAFE' | 'CAUTION' | 'DANGER' | 'RUG';
 }
 
-// TAP scanning is always available — uses public API at tap.trac.network
-// Local tap-reader (TAP_READER_URL) is used as fallback if set.
+// TAP scanning uses the official public API at tap.trac.network — no local node needed.
 export function tapReaderAvailable(): boolean {
   return true;
 }
