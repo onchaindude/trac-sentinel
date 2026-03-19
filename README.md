@@ -106,7 +106,7 @@ npm install && npm run build
 NODE_ENV=production node apps/backend/dist/index.js
 ```
 
-Your terminal will print the URL (auto-detects a free port starting at 4000). Open it in your browser — your node connects to the Trac P2P Network automatically.
+Your terminal will print the URL (auto-detects a free port starting at 4000). Open it in your browser. P2P sharing requires Intercom — see the [Trac P2P Network](#trac-p2p-network) section, or run via Pear for automatic setup.
 
 ---
 
@@ -129,7 +129,7 @@ npm run build
 NODE_ENV=production node apps/backend/dist/index.js
 ```
 
-Your terminal will print the URL. Open it — your node scans live and shares results with the P2P network.
+Your terminal will print the URL. Open it — your node scans live. P2P sharing requires Intercom — see the [Trac P2P Network](#trac-p2p-network) section.
 
 ---
 
@@ -244,7 +244,8 @@ pear run pear://cx8ohu8zmgg6cijjfkzinu4o1b4jpnhjsgfmmsyhotjn1x8zbego
 2. Installs dependencies and builds
 3. Installs Ollama if not already on your system (skipped if you have it)
 4. Downloads `qwen2.5:7b` — only if you don't already have an Ollama model configured
-5. Shows you where to add API keys, then starts
+5. Sets up Trac Intercom for P2P (clones, generates token, starts automatically)
+6. Shows you where to add API keys, then starts
 
 Every launch after that is instant. Your browser opens automatically. The terminal shows your port.
 
@@ -286,7 +287,7 @@ Once synced, scan any TAP ticker (e.g. `TRAC`, `NAT`) directly from the UI. Init
 
 ```bash
 npm install -g pm2
-pm2 start node --name trac-sentinel -- apps/backend/dist/index.js
+NODE_ENV=production pm2 start node --name trac-sentinel -- apps/backend/dist/index.js
 pm2 save && pm2 startup
 ```
 
@@ -295,10 +296,14 @@ pm2 save && pm2 startup
 ## Docker
 
 ```bash
+# API only (no UI)
 docker compose up
+
+# With Ollama for AI summaries
+docker compose --profile ollama up
 ```
 
-The backend auto-detects a free port and prints the URL to the terminal.
+The backend runs on port 4000. The Docker image includes the API only — for the full UI, use the manual install or Pear.
 
 ---
 
@@ -323,7 +328,8 @@ trac-sentinel/
 │   │           ├── helius.ts      # Solana token + holder data
 │   │           ├── coinpaprika.ts # Price + market cap (free, no key)
 │   │           ├── ollama.ts      # Local AI narrative generation
-│   │           └── tapScanner.ts  # Bitcoin TAP Protocol scanner
+│   │           ├── tap.ts         # TAP Protocol existence check (EVM tokens)
+│   │           └── tapScanner.ts  # Bitcoin TAP Protocol full scanner
 │   ├── frontend/                  # React · Vite · TypeScript (no UI framework)
 │   │   └── src/
 │   │       ├── App.tsx            # Main dashboard + P2P metrics panel
