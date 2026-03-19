@@ -192,22 +192,43 @@ No setup required. The community bot is already running.
 | `/subscribe` | Get alerts when RUG/DANGER tokens are detected by any network node |
 | `/unsubscribe` | Stop alerts |
 | `/stats` | Network stats — total scans, rugs found, subscriber count |
-| Paste address | Scan any token on demand |
+
+**Scanning on demand — send the address with the chain:**
+
+```
+# Ethereum (default if no chain specified)
+0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984 eth
+
+# Other EVM chains — add the chain name
+0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984 bsc
+0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984 base
+
+# Solana — auto-detected by address format, no chain needed
+EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+
+# Bitcoin TAP Protocol — ticker + "tap"
+TRAC tap
+NAT tap
+```
 
 ---
 
 ## Trac P2P Network
 
-TracSentinel is built on the [Trac Network](https://tracsystems.io) Intercom SC-Bridge. When your node completes a scan, the result is automatically published to the `tracsentinel` P2P channel. Other nodes receive it instantly and serve it from cache — no duplicate API calls.
+TracSentinel connects to the [Trac Network](https://tracsystems.io) via the Intercom SC-Bridge — a WebSocket gateway that lets nodes share scan results with each other in real time.
 
-To join the P2P network, add to your `.env`:
+**Without SC-Bridge credentials:** TracSentinel runs as a local-only scanner. All features work — scanning, Telegram bot, history, watchlist — just no P2P sharing with other nodes.
+
+**With SC-Bridge credentials:** Your node joins the `tracsentinel` P2P channel. Completed scans are published to the network automatically, and results from other nodes load instantly without any API calls.
+
+To connect to the P2P network, add to your `.env`:
 
 ```env
 SC_BRIDGE_URL=ws://127.0.0.1:49222
 SC_BRIDGE_TOKEN=your_token_here
 ```
 
-Get your SC-Bridge credentials at [tracsystems.io](https://tracsystems.io).
+SC-Bridge credentials are issued by the Trac Network team. Join the community at [tracsystems.io](https://tracsystems.io) to get yours.
 
 ---
 
