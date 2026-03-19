@@ -303,6 +303,17 @@ async function autoSetupIntercom(): Promise<void> {
     }
   }
 
+  // Install Intercom deps if missing
+  if (!fs.existsSync(path.join(intercomDir, 'node_modules'))) {
+    logger.info('Installing Intercom dependencies…');
+    try {
+      execFileSync('npm', ['install', '--prefix', intercomDir], { stdio: 'pipe' });
+    } catch (err) {
+      logger.warn({ err }, 'Could not install Intercom deps — P2P disabled');
+      return;
+    }
+  }
+
   // Reuse existing token if already configured, otherwise generate a new one
   const envFile = path.join(__dirname, '../.env');
   let token = process.env.SC_BRIDGE_TOKEN ?? '';
