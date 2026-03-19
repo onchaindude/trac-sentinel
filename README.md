@@ -85,48 +85,50 @@ Add your API keys and your node scans any token live, then automatically publish
 
 ## Getting Started
 
-### Requirements
+### Quickest way — Pear App
 
-- Node.js 20+
-- For Full Node mode: API keys (see below)
-- For local AI summaries: [Ollama](https://ollama.ai) (optional but recommended)
+Install [Pear Runtime](https://pears.com), then:
+
+```bash
+pear run pear://cx8ohu8zmgg6cijjfkzinu4o1b4jpnhjsgfmmsyhotjn1x8zbego
+```
+
+First launch downloads and sets everything up automatically. See the [Pear Terminal App](#pear-terminal-app) section below for details.
 
 ---
 
-### Peer Mode (no API keys)
+### Manual install — Peer Mode (no API keys)
 
 ```bash
 git clone https://github.com/onchaindude/trac-sentinel.git
 cd trac-sentinel
-npm install
-npm run build
+npm install && npm run build
 node apps/backend/dist/index.js
 ```
 
-Open **http://localhost:4000** — your node connects to the Trac P2P Network and starts receiving results from other nodes automatically.
+Open **http://localhost:4000** — your node connects to the Trac P2P Network and receives scan results from other nodes automatically.
 
 ---
 
-### Full Node Mode (with API keys)
+### Manual install — Full Node Mode (with API keys)
 
 ```bash
 git clone https://github.com/onchaindude/trac-sentinel.git
 cd trac-sentinel
 npm install
 
-# Set up your environment
 cp apps/backend/.env.example apps/backend/.env
-# Edit apps/backend/.env and add your API keys
+# Edit .env and add your API keys
 
-# (Optional) Install Ollama for local AI summaries
-# https://ollama.ai — then:
+# Optional: local AI summaries
+# Install Ollama from https://ollama.ai, then:
 ollama pull qwen2.5:7b
 
 npm run build
 node apps/backend/dist/index.js
 ```
 
-Open **http://localhost:4000**. Your node now scans live and shares results with the network.
+Open **http://localhost:4000**. Your node scans live and shares results with the P2P network.
 
 ---
 
@@ -218,28 +220,33 @@ pm2 save && pm2 startup
 
 ## Pear Terminal App
 
-TracSentinel ships with a [Pear Runtime](https://docs.pears.com) launcher that manages the backend for you — auto-detects a free port, opens your browser, and restarts the backend if it crashes.
+TracSentinel is published on the Pear Network. If you have [Pear Runtime](https://pears.com) installed, this is the simplest way to run it — no cloning, no building, nothing.
 
 **Step 1 — Install Pear Runtime** (one time only)
 
-Go to [pears.com](https://pears.com) and follow the install instructions for your OS. This installs the `pear` CLI.
+Go to [pears.com](https://pears.com) and follow the install guide for your OS.
 
-**Step 2 — Build TracSentinel** (after cloning)
-
-```bash
-npm install
-npm run build
-```
-
-**Step 3 — Run**
+**Step 2 — Run TracSentinel**
 
 ```bash
-pear run apps/pear
+pear run pear://cx8ohu8zmgg6cijjfkzinu4o1b4jpnhjsgfmmsyhotjn1x8zbego
 ```
 
-That's it. The terminal shows live backend logs and opens your browser automatically.
+On first launch, TracSentinel downloads and builds itself automatically (~2 minutes). Every launch after that is instant.
 
-> **Coming soon:** Once published to the Pear network, the entire install becomes a single command — `pear run pear://[key]` — no cloning or building needed. Anyone with Pear installed can run TracSentinel that way.
+The terminal shows live logs. Your browser opens automatically. Press `Ctrl+C` to stop.
+
+**Adding API keys (optional — enables live scanning)**
+
+After the first run, your config file is created at:
+```
+~/.config/trac-sentinel/repo/apps/backend/.env
+```
+Edit it to add your API keys. Without them, the node runs in Peer Mode and still receives P2P scan results from the network.
+
+**Updating**
+
+Re-run the same `pear run` command. If a new version is available, Pear downloads it automatically.
 
 ---
 

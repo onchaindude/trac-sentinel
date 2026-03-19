@@ -2,23 +2,31 @@ import Pear          from 'pear';
 import path          from 'path';
 import fs            from 'fs';
 import net           from 'net';
-import { spawn }     from 'child_process';
+import os            from 'os';
+import { spawn, execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
-const { bold, green, yellow, red, cyan, reset } = {
+const { bold, green, yellow, red, cyan } = {
   bold:   s => `\x1b[1m${s}\x1b[0m`,
   green:  s => `\x1b[32m${s}\x1b[0m`,
   yellow: s => `\x1b[33m${s}\x1b[0m`,
   red:    s => `\x1b[31m${s}\x1b[0m`,
   cyan:   s => `\x1b[36m${s}\x1b[0m`,
-  reset:  s => `\x1b[0m${s}\x1b[0m`,
 };
 
-const __dirname  = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot   = path.join(__dirname, '../..');
-const backendDir = path.join(repoRoot, 'apps/backend');
-const backendEntry = path.join(backendDir, 'dist/index.js');
-const envFile    = path.join(backendDir, '.env');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ── Dev mode: running from cloned repo (pear run apps/pear) ───────────────────
+// Standalone: running from Pear network (pear run pear://key)
+const DEV_BACKEND    = path.join(__dirname, '../../apps/backend');
+const isDevMode      = fs.existsSync(path.join(DEV_BACKEND, 'dist/index.js'));
+
+// Standalone install location (~/.config/trac-sentinel/)
+const INSTALL_DIR    = path.join(os.homedir(), '.config', 'trac-sentinel');
+const REPO_DIR       = path.join(INSTALL_DIR, 'repo');
+const BACKEND_DIR    = isDevMode ? DEV_BACKEND : path.join(REPO_DIR, 'apps/backend');
+const BACKEND_ENTRY  = path.join(BACKEND_DIR, 'dist/index.js');
+const ENV_FILE       = path.join(BACKEND_DIR, '.env');
 
 // ── Banner ─────────────────────────────────────────────────────────────────────
 console.log('');
@@ -33,25 +41,54 @@ console.log(bold('  TracSentinel') + cyan(' — P2P Crypto Rug Pull Detector'));
 console.log(cyan('  Built on Trac Network · tracsystems.io'));
 console.log('');
 
-// ── Sanity checks ─────────────────────────────────────────────────────────────
-if (!fs.existsSync(backendEntry)) {
-  console.error(red('  ✗ Backend not built. Run: npm run build'));
-  console.error(red('    from the trac-sentinel repo root first.\n'));
-  Pear.exit(1);
-}
+// ── Bootstrap: clone + build on first run (standalone only) ──────────────────
+async function bootstrap() {
+  if (isDevMode) return;
+  if (fs.existsSync(BACKEND_ENTRY)) return; // already installed
 
-// ── Detect mode from .env ─────────────────────────────────────────────────────
-let mode = 'peer';
-if (fs.existsSync(envFile)) {
-  const env = fs.readFileSync(envFile, 'utf8');
-  if (/^ETHERSCAN_API_KEY=.+/m.test(env)) mode = 'full_node';
-}
+  console.log(yellow('  First run — setting up TracSentinel…'));
+  console.log(yellow('  This takes a few minutes and only happens once.\n'));
 
-console.log(`  Mode: ${mode === 'full_node' ? bold(green('Full Node')) + ' (live scans + P2P publish)' : bold(yellow('Peer')) + ' (P2P receive only)'}`);
-if (mode === 'peer') {
-  console.log(yellow('  → To enable live scanning, add API keys to apps/backend/.env'));
+  for (const [cmd, label, url] of [
+    ['git', 'git', 'https://git-scm.com'],
+    ['node', 'Node.js', 'https://nodejs.org'],
+    ['npm', 'npm', 'https://nodejs.org'],
+  ]) {
+    try { execFileSync(cmd, ['--version'], { stdio: 'ignore' }); }
+    catch {
+      console.error(red(`  ✗ ${label} is required. Install it from ${url}\n`));
+      Pear.exit(1);
+    }
+  }
+
+  fs.mkdirSync(INSTALL_DIR, { recursive: true });
+
+  if (fs.existsSync(path.join(REPO_DIR, '.git'))) {
+    console.log(cyan('  ↻ Updating to latest version…'));
+    execFileSync('git', ['pull', '--ff-only'], { cwd: REPO_DIR, stdio: 'inherit' });
+  } else {
+    console.log(cyan('  ↓ Downloading TracSentinel…'));
+    execFileSync('git', [
+      'clone', '--depth=1',
+      'https://github.com/onchaindude/trac-sentinel.git',
+      REPO_DIR,
+    ], { stdio: 'inherit' });
+  }
+
+  console.log(cyan('\n  ⚙ Installing dependencies (this may take a moment)…'));
+  execFileSync('npm', ['install'], { cwd: REPO_DIR, stdio: 'inherit' });
+
+  console.log(cyan('\n  ⚙ Building…'));
+  execFileSync('npm', ['run', 'build'], { cwd: REPO_DIR, stdio: 'inherit' });
+
+  // Copy .env.example if no .env exists yet
+  if (!fs.existsSync(ENV_FILE)) {
+    const example = path.join(REPO_DIR, 'apps/backend/.env.example');
+    if (fs.existsSync(example)) fs.copyFileSync(example, ENV_FILE);
+  }
+
+  console.log(green('\n  ✓ Setup complete!\n'));
 }
-console.log('');
 
 // ── Find a free port (4000–4019) ──────────────────────────────────────────────
 async function findFreePort(start = 4000) {
@@ -66,8 +103,8 @@ async function findFreePort(start = 4000) {
   });
 }
 
-// ── Wait until backend is accepting connections ───────────────────────────────
-async function waitForBackend(port, timeout = 30_000) {
+// ── Wait until backend accepts connections ────────────────────────────────────
+async function waitForBackend(port, timeout = 60_000) {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     await new Promise(r => setTimeout(r, 500));
@@ -83,15 +120,38 @@ async function waitForBackend(port, timeout = 30_000) {
 
 // ── Open browser ──────────────────────────────────────────────────────────────
 function openBrowser(url) {
-  const platform = process.platform;
-  const cmd = platform === 'darwin' ? 'open'
-            : platform === 'win32'  ? 'cmd'
-            : 'xdg-open';
-  const args = platform === 'win32' ? ['/c', 'start', url] : [url];
+  const cmd  = process.platform === 'darwin' ? 'open'
+             : process.platform === 'win32'  ? 'cmd' : 'xdg-open';
+  const args = process.platform === 'win32' ? ['/c', 'start', url] : [url];
   spawn(cmd, args, { detached: true, stdio: 'ignore' }).unref();
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+await bootstrap();
+
+// Show .env path hint on first run
+if (!isDevMode && !fs.existsSync(ENV_FILE.replace('.env', '.env.seen'))) {
+  fs.writeFileSync(ENV_FILE.replace('.env', '.env.seen'), '1');
+  console.log(yellow('  ┌─────────────────────────────────────────────────────────────┐'));
+  console.log(yellow('  │  Running in Peer Mode (no API keys configured).             │'));
+  console.log(yellow('  │  To enable live scanning, add your API keys to:             │'));
+  console.log(yellow(`  │  ${ENV_FILE.slice(0, 61).padEnd(61)}│`));
+  console.log(yellow('  └─────────────────────────────────────────────────────────────┘'));
+  console.log('');
+}
+
+// Detect mode
+let mode = 'peer';
+if (fs.existsSync(ENV_FILE)) {
+  const env = fs.readFileSync(ENV_FILE, 'utf8');
+  if (/^ETHERSCAN_API_KEY=.+/m.test(env)) mode = 'full_node';
+}
+
+console.log(`  Mode: ${mode === 'full_node'
+  ? bold(green('Full Node')) + ' (live scans + P2P publish)'
+  : bold(yellow('Peer')) + ' (P2P receive only)'}`);
+console.log('');
+
 const port = await findFreePort();
 if (port !== 4000) {
   console.log(yellow(`  Port 4000 in use — using port ${port} instead`));
@@ -103,16 +163,15 @@ let stopping = false;
 let currentBackend = null;
 
 function startBackend() {
-  const proc = spawn(process.execPath, [backendEntry], {
-    cwd: backendDir,
-    env: { ...process.env, PORT: String(port) },
+  const proc = spawn(process.execPath, [BACKEND_ENTRY], {
+    cwd:   BACKEND_DIR,
+    env:   { ...process.env, PORT: String(port) },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   currentBackend = proc;
 
   proc.stdout.on('data', chunk => {
-    const lines = chunk.toString().split('\n').filter(Boolean);
-    for (const line of lines) {
+    for (const line of chunk.toString().split('\n').filter(Boolean)) {
       try {
         const obj = JSON.parse(line);
         const msg = obj.msg ?? line;
@@ -122,9 +181,9 @@ function startBackend() {
       } catch { console.log(cyan(`  [backend] ${line}`)); }
     }
   });
+
   proc.stderr.on('data', chunk => {
-    const lines = chunk.toString().split('\n').filter(Boolean);
-    for (const line of lines) {
+    for (const line of chunk.toString().split('\n').filter(Boolean)) {
       if (!line.includes('DeprecationWarning')) console.log(red(`  [backend] ${line}`));
     }
   });
@@ -134,13 +193,10 @@ function startBackend() {
     console.log(yellow(`\n  Backend exited (code ${code}) — restarting in 3s…\n`));
     setTimeout(() => startBackend(), 3_000);
   });
-
-  return proc;
 }
 
 startBackend();
 
-// Wait for backend to be ready then open browser
 const ready = await waitForBackend(port);
 if (!ready) {
   console.error(red('\n  ✗ Backend did not start in time. Check logs above.\n'));
@@ -158,7 +214,6 @@ console.log(cyan('  Press Ctrl+C to stop.\n'));
 
 openBrowser(url);
 
-// Graceful shutdown on SIGINT and SIGTERM
 function shutdown() {
   if (stopping) return;
   stopping = true;
