@@ -1,4 +1,3 @@
-import Pear          from 'pear';
 import path          from 'path';
 import fs            from 'fs';
 import net           from 'net';
@@ -60,7 +59,7 @@ async function bootstrap() {
     try { execFileSync(cmd, ['--version'], { stdio: 'ignore' }); }
     catch {
       console.error(red(`  ✗ ${label} is required. Install it from ${url}\n`));
-      Pear.exit(1);
+      process.exit(1);
     }
   }
 
@@ -397,7 +396,7 @@ const ready = await waitForBackend(port);
 if (!ready) {
   console.error(red('\n  ✗ Backend did not start in time. Check logs above.\n'));
   currentBackend?.kill();
-  Pear.exit(1);
+  process.exit(1);
 }
 
 const url = `http://localhost:${port}`;
@@ -415,7 +414,7 @@ function shutdown() {
   console.log(yellow('\n  Shutting down…'));
   currentBackend?.kill('SIGTERM');
   intercomProc?.kill('SIGTERM');
-  setTimeout(() => Pear.exit(0), 2_000);
+  setTimeout(() => process.exit(0), 2_000);
 }
 process.on('SIGINT',  shutdown);
 process.on('SIGTERM', shutdown);
