@@ -82,11 +82,30 @@ if command -v ollama &>/dev/null; then
   MODEL=$(grep "^OLLAMA_MODEL=" "$ENV_FILE" 2>/dev/null | cut -d= -f2)
   MODEL="${MODEL:-qwen2.5:7b}"
   MODEL_FAMILY="${MODEL%%:*}"
+
+  # Start ollama serve in background if not already running
+  OLLAMA_STARTED=false
+  if ! ollama list &>/dev/null; then
+    ollama serve &>/dev/null &
+    OLLAMA_PID=$!
+    OLLAMA_STARTED=true
+    sleep 3
+  fi
+
   if ollama list 2>/dev/null | grep -q "$MODEL_FAMILY"; then
     green "  ✓ Ollama model ready: $MODEL"
   else
     cyan "  ⚙ Downloading AI model ($MODEL)…"
-    ollama pull "$MODEL"
+    if ollama pull "$MODEL"; then
+      green "  ✓ Model downloaded: $MODEL"
+    else
+      yellow "  → Could not download model — start Ollama and run: ollama pull $MODEL"
+    fi
+  fi
+
+  # Stop the background serve we started (user will start it properly later)
+  if [ "$OLLAMA_STARTED" = true ]; then
+    kill "$OLLAMA_PID" 2>/dev/null || true
   fi
 fi
 
