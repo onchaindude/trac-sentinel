@@ -155,7 +155,8 @@ class TracNetwork extends EventEmitter {
         break;
 
       case 'error':
-        logger.warn({ msg }, 'TracNetwork: SC-Bridge error message');
+        logger.warn({ bridge_msg: JSON.stringify(msg) }, 'TracNetwork: SC-Bridge error — closing and reconnecting');
+        this.ws?.close(); // trigger reconnect with fresh handshake
         break;
     }
   }
