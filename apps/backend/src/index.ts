@@ -326,15 +326,24 @@ async function autoSetupIntercom(): Promise<void> {
   // Start Intercom (always — it needs to run on every startup)
   try {
     const proc = spawnProcess(pearBin, [
-      'run', intercomDir,
+      'run', '--detached', intercomDir,
       '--peer-store-name',       'trac-sentinel-peer',
       '--sc-bridge',
       '--sc-bridge-token',       token,
       '--sc-bridge-port',        '49222',
       '--sidechannel',           'tracsentinel',
       '--sidechannel-auto-join', '1',
-    ], { stdio: 'ignore', detached: false });
-    proc.on('error', () => {});
+    ], { stdio: ['ignore', 'pipe', 'pipe'], detached: false });
+
+    let startupErr = '';
+    proc.stderr?.on('data', (d: Buffer) => { startupErr += d.toString(); });
+    proc.on('close', (code) => {
+      if (code !== 0 && startupErr) {
+        logger.warn({ code, stderr: startupErr.slice(0, 300) }, 'Intercom exited with error');
+      }
+    });
+    proc.on('error', (err) => logger.warn({ err }, 'Intercom spawn error'));
+
     logger.info('Trac Intercom started — P2P connecting…');
   } catch (err) {
     logger.warn({ err }, 'Failed to start Intercom — P2P disabled');
