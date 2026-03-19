@@ -109,6 +109,32 @@ if command -v ollama &>/dev/null; then
   fi
 fi
 
+# ── Pear Runtime check (needed for P2P) ──────────────────────────────────────
+echo ""
+PEAR_FOUND=false
+if command -v pear &>/dev/null; then
+  PEAR_FOUND=true
+elif [ -f "$HOME/Library/Application Support/pear/bin/pear" ]; then
+  PEAR_FOUND=true
+elif [ -f "$HOME/.config/pear/bin/pear" ]; then
+  PEAR_FOUND=true
+fi
+
+if [ "$PEAR_FOUND" = true ]; then
+  green "  ✓ Pear Runtime found — P2P result sharing will be enabled automatically on first start"
+else
+  bold "  ┌─────────────────────────────────────────────────────────────────┐"
+  bold "  │  P2P Result Sharing — requires Pear Runtime (optional)          │"
+  bold "  │                                                                 │"
+  bold "  │  Without it: scanner works fully in Full Node mode.            │"
+  bold "  │  With it: your node connects to the Trac Network and shares    │"
+  bold "  │  scan results with other nodes in real time.                   │"
+  bold "  │                                                                 │"
+  bold "  │  Install: https://pears.com → then restart TracSentinel        │"
+  bold "  │  P2P is configured automatically once Pear is installed.       │"
+  bold "  └─────────────────────────────────────────────────────────────────┘"
+fi
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
 green "  ✓ TracSentinel installed!"

@@ -185,7 +185,11 @@ app.post('/api/analyze', analyzeLimiter, async (req, res) => {
     saveResult(result);
     broadcast({ type: 'complete', data: result });
     broadcastHighRisk(result).catch(() => {});
-    logger.info({ chain, address: addr, risk_level: result.verdict?.risk_level, score: result.verdict?.risk_score }, 'Analysis complete');
+    if (result.status === 'error') {
+      logger.info({ chain, address: addr }, 'Peer mode — no live scan, awaiting P2P result');
+    } else {
+      logger.info({ chain, address: addr, risk_level: result.verdict?.risk_level, score: result.verdict?.risk_score }, 'Analysis complete');
+    }
   } catch (err) {
     activeResults.delete(trackingId);
     logger.error({ chain, address: addr, err }, 'Analysis error');

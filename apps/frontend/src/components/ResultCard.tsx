@@ -737,17 +737,28 @@ export function ResultCard({ result, isPinned, onPin, onUnpin, onScanAnother }: 
         </div>
       </div>
 
-      {/* Error banner */}
-      {result.status === 'error' && result.error && (
-        <div style={{ background: '#1c0a0a', border: '1px solid #7f1d1d', borderRadius: '8px',
-          padding: '10px 14px', marginBottom: '12px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-          <span style={{ color: '#ef4444', fontSize: '16px', flexShrink: 0 }}>⚠</span>
-          <div>
-            <div style={{ color: '#f87171', fontSize: '12px', fontWeight: 700, marginBottom: '2px' }}>Scan Failed</div>
-            <div style={{ color: '#9ca3af', fontSize: '12px', lineHeight: 1.5 }}>{result.error}</div>
+      {/* Error / peer-mode banner */}
+      {result.status === 'error' && result.error && (() => {
+        const isPeerMode = result.error.startsWith('Peer mode');
+        return (
+          <div style={{
+            background: isPeerMode ? '#0a1628' : '#1c0a0a',
+            border: `1px solid ${isPeerMode ? '#1e3a5f' : '#7f1d1d'}`,
+            borderRadius: '8px', padding: '10px 14px', marginBottom: '12px',
+            display: 'flex', gap: '10px', alignItems: 'flex-start',
+          }}>
+            <span style={{ color: isPeerMode ? '#60a5fa' : '#ef4444', fontSize: '16px', flexShrink: 0 }}>
+              {isPeerMode ? '🌐' : '⚠'}
+            </span>
+            <div>
+              <div style={{ color: isPeerMode ? '#93c5fd' : '#f87171', fontSize: '12px', fontWeight: 700, marginBottom: '2px' }}>
+                {isPeerMode ? 'Peer Mode — Awaiting P2P Result' : 'Scan Failed'}
+              </div>
+              <div style={{ color: '#9ca3af', fontSize: '12px', lineHeight: 1.5 }}>{result.error}</div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Skeleton while analyzing */}
       {isAnalyzing && !verdict && (

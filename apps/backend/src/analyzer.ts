@@ -78,7 +78,7 @@ export async function analyzeToken(
       goplus: null, dex: null, coingecko: null, scoring: null,
       tap_protocol: false, tap_scan: null, verdict: null,
       steps: [],
-      error: 'Peer mode — no live scan API keys configured. This node receives results shared by the Trac Network. Results will appear automatically once another full node scans this token.',
+      error: 'Peer mode — live scanning requires API keys (ETHERSCAN_API_KEY, GOPLUS_APP_KEY). This node is connected to the Trac P2P Network and will display results automatically when another Full Node scans this token. To enable live scanning, add your API keys to the .env file and restart.',
     };
     onProgress(errResult);
     return errResult;
