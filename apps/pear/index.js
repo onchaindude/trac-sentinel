@@ -4,6 +4,7 @@ import fs            from 'fs';
 import net           from 'net';
 import os            from 'os';
 import crypto        from 'crypto';
+import readline      from 'readline';
 import { spawn, execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
@@ -89,7 +90,7 @@ async function bootstrap() {
     if (fs.existsSync(example)) fs.copyFileSync(example, ENV_FILE);
   }
 
-  // ── Ollama: install if missing, pull default model only if needed ─────────────
+  // ── Ollama: prompt user, then install if they want it ────────────────────────
   let ollamaInstalled = false;
   try { execFileSync('ollama', ['--version'], { stdio: 'ignore' }); ollamaInstalled = true; }
   catch {}
@@ -97,18 +98,46 @@ async function bootstrap() {
   if (ollamaInstalled) {
     console.log(green('  ✓ Ollama already installed'));
   } else {
-    console.log(cyan('\n  ⚙ Installing Ollama (local AI)…'));
-    if (process.platform === 'win32') {
-      console.log(yellow('  → Windows: download Ollama from https://ollama.ai and re-run.'));
-      console.log(yellow('    AI summaries will be disabled until Ollama is installed.\n'));
-    } else {
-      try {
-        execFileSync('sh', ['-c', 'curl -fsSL https://ollama.ai/install.sh | sh'], { stdio: 'inherit' });
-        ollamaInstalled = true;
-      } catch {
-        console.log(yellow('  → Could not auto-install Ollama. Get it at https://ollama.ai'));
-        console.log(yellow('    AI summaries disabled until installed.\n'));
+    console.log('');
+    console.log(bold('  ┌─────────────────────────────────────────────────────────────────┐'));
+    console.log(bold('  │  Local AI (Ollama) — optional                                   │'));
+    console.log(bold('  │                                                                 │'));
+    console.log(bold('  │  Generates human-readable summaries for each scan result.       │'));
+    console.log(bold('  │  Runs entirely on your machine — no data sent anywhere.         │'));
+    console.log(bold('  │                                                                 │'));
+    console.log(bold('  │  Requirements:                                                  │'));
+    console.log(bold('  │    • ~5 GB disk space (for the default qwen2.5:7b model)        │'));
+    console.log(bold('  │    • 8 GB RAM recommended (4 GB minimum)                        │'));
+    console.log(bold('  │    • One-time download, runs offline after that                 │'));
+    console.log(bold('  │                                                                 │'));
+    console.log(bold('  │  Without Ollama: scanner works fully, AI summaries are skipped. │'));
+    console.log(bold('  └─────────────────────────────────────────────────────────────────┘'));
+    console.log('');
+
+    const answer = await new Promise(resolve => {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      rl.question(cyan('  Install Ollama for AI summaries? [y/N] '), ans => {
+        rl.close();
+        resolve(ans.trim().toLowerCase());
+      });
+    });
+
+    if (answer === 'y' || answer === 'yes') {
+      if (process.platform === 'win32') {
+        console.log(yellow('\n  → Windows: download Ollama manually from https://ollama.ai'));
+        console.log(yellow('    Re-run TracSentinel after installing — AI summaries will activate automatically.\n'));
+      } else {
+        console.log(cyan('\n  ⚙ Installing Ollama…'));
+        try {
+          execFileSync('sh', ['-c', 'curl -fsSL https://ollama.ai/install.sh | sh'], { stdio: 'inherit' });
+          ollamaInstalled = true;
+        } catch {
+          console.log(yellow('  → Install failed. Get it manually at https://ollama.ai\n'));
+        }
       }
+    } else {
+      console.log(yellow('  → Skipping Ollama — AI summaries will be disabled.'));
+      console.log(yellow('    You can install it later from https://ollama.ai and re-run.\n'));
     }
   }
 

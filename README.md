@@ -163,19 +163,24 @@ Keys stay on your machine and are never shared with anyone.
 
 TracSentinel uses [Ollama](https://ollama.ai) to generate human-readable summaries for each scan. It runs entirely on your hardware — no data leaves your machine.
 
-**Ollama is optional.** The scanner works fully without it — AI summaries will just be omitted.
+**Ollama is optional.** The scanner works fully without it — AI summaries will just be omitted. When running via Pear, first launch asks if you want to install it and explains the requirements before doing anything.
+
+**Requirements (if you choose to install):**
+- ~5 GB disk space for the default model
+- 8 GB RAM recommended (4 GB minimum)
+- One-time download — runs fully offline after that
 
 **Default model:** `qwen2.5:7b` (~4.7 GB) — reliable, accurate JSON output.
 
 **Use your own model** by setting `OLLAMA_MODEL` in your `.env`:
 
 ```env
-OLLAMA_MODEL=llama3.2:3b    # lighter, faster
-OLLAMA_MODEL=mistral:7b     # solid alternative
-OLLAMA_MODEL=qwen2.5:3b     # smaller qwen
+OLLAMA_MODEL=llama3.2:3b    # lighter, faster, ~2 GB
+OLLAMA_MODEL=mistral:7b     # solid alternative, ~4.1 GB
+OLLAMA_MODEL=qwen2.5:3b     # smaller qwen, ~2 GB
 ```
 
-Any model in your `ollama list` will work. TracSentinel respects whatever you have configured.
+Any model in your `ollama list` will work. TracSentinel respects whatever you have configured. Already have Ollama? It detects this and skips installation entirely.
 
 ---
 
@@ -243,17 +248,15 @@ Go to [pears.com](https://pears.com) and follow the install guide for your OS.
 pear run pear://cx8ohu8zmgg6cijjfkzinu4o1b4jpnhjsgfmmsyhotjn1x8zbego
 ```
 
-**What happens on first launch** (~5–10 min, one time only):
+**What happens on first launch** (one time only):
 1. Downloads TracSentinel source from GitHub
 2. Installs dependencies and builds
-3. Installs Ollama if not already on your system (skipped if you have it)
-4. Downloads `qwen2.5:7b` — only if you don't already have an Ollama model configured
+3. **Asks if you want to install Ollama** — shows disk/RAM requirements, you choose yes or no
+4. If yes: downloads `qwen2.5:7b` (~5 GB, one-time). If you already have Ollama, this is skipped entirely.
 5. Sets up Trac Intercom for P2P (clones, generates token, starts automatically)
 6. Shows you where to add API keys, then starts
 
-Every launch after that is instant. Your browser opens automatically. The terminal shows your port.
-
-**Already have Ollama?** TracSentinel uses whatever model is set in your `.env`. Set `OLLAMA_MODEL=your-preferred-model` and it won't download anything.
+Every launch after that is instant. Your browser opens automatically.
 
 **Adding API keys** (optional — enables live scanning)
 
@@ -269,9 +272,15 @@ Edit it to add your API keys. Without them, the node runs in Peer Mode and still
 
 ## Bitcoin TAP Protocol
 
-Scanning TAP Protocol tokens (Bitcoin Ordinals) requires a local [tap-reader](https://github.com/Trac-Systems/tap-reader) node. This is optional — all other chains work without it.
+TAP Protocol is a Bitcoin Ordinals token standard by [Trac Systems](https://tracsystems.io). Because it runs on Bitcoin (not an EVM chain or Solana), there is no centralized API — data comes from a local [tap-reader](https://github.com/Trac-Systems/tap-reader) full node that you run yourself.
 
-**Requirements:** ~150 GB SSD, 8 GB RAM, Node.js 20+
+**This is completely optional.** All 7 other chains (ETH, BNB, Polygon, Arbitrum, Base, Optimism, Solana) work without it. Only add this if you specifically want to scan TAP tokens like `TRAC` or `NAT`.
+
+**Requirements:**
+- ~150 GB SSD (Bitcoin Ordinals index)
+- 8 GB RAM
+- Node.js 20+
+- Initial sync takes hours to days (one time)
 
 ```bash
 git clone https://github.com/Trac-Systems/tap-reader
@@ -283,7 +292,7 @@ Add to `.env`:
 TAP_READER_URL=http://localhost:5099
 ```
 
-Once synced, scan any TAP ticker (e.g. `TRAC`, `NAT`) directly from the UI. Initial sync takes hours to days.
+Once synced, scan any TAP ticker (e.g. `TRAC`, `NAT`) directly from the UI.
 
 ---
 
