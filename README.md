@@ -90,7 +90,7 @@ Add your API keys and your node scans any token live, then automatically publish
 Install [Pear Runtime](https://pears.com) from pears.com, then run:
 
 ```bash
-pear run pear://yy5docscuinakxdm3bkjenjzsc7hfn6agfm795mj6x9oy5oo7iby
+pear run pear://9si3o6qk1wz7hbwp5x5wghm4n839gy3wworexhatwg5iu5efxmuy
 ```
 
 First launch sets everything up automatically. See the [Pear Terminal App](#pear-terminal-app) section for full details.
@@ -245,7 +245,7 @@ Go to [pears.com](https://pears.com) and follow the install guide for your OS.
 **Step 2 — Run**
 
 ```bash
-pear run pear://yy5docscuinakxdm3bkjenjzsc7hfn6agfm795mj6x9oy5oo7iby
+pear run pear://9si3o6qk1wz7hbwp5x5wghm4n839gy3wworexhatwg5iu5efxmuy
 ```
 
 **What happens on first launch** (one time only):
