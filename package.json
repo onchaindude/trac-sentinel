@@ -2,6 +2,11 @@
   "name": "trac-sentinel",
   "version": "1.0.0",
   "private": true,
+  "main": "apps/pear/index.js",
+  "pear": {
+    "name": "TracSentinel",
+    "type": "terminal"
+  },
   "workspaces": ["apps/*"],
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=apps/backend\" \"npm run dev --workspace=apps/frontend\"",
