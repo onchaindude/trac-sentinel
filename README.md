@@ -44,14 +44,14 @@ Add your API keys and your node scans any token live, then automatically publish
 - **Contract analysis** — source code verification, ownership renouncement, mint authority
 - **Solana-specific** — mint authority, freeze authority, metadata mutability (Helius)
 - **Bitcoin TAP Protocol** — full scanner: mint progress, holders, token-auth authority, trade count
-- **Local AI narrative** — Ollama (qwen2.5:7b) writes a human-readable summary that matches the verdict. Runs entirely on your hardware
+- **Local AI narrative** — any Ollama model writes a human-readable summary matching the verdict. Runs entirely on your hardware. Default: `qwen2.5:7b`
 - **Real-time streaming** — WebSocket scan progress, step-by-step live updates in the UI
 - **Scan history** — searchable, with risk-level change alerts when you rescan
 - **Watchlist** — pin tokens, rescan in one click
 - **Batch scanning** — paste multiple addresses at once
 - **P2P result sharing** — completed scans published to the Trac Network automatically
 - **P2P metrics panel** — live view of connected peers, results received, node IDs
-- **Telegram alerts** — shared community bot: `/subscribe` once, receive RUG/DANGER alerts from any node on the network. No bot setup required
+- **Telegram alerts** — shared community bot: `/subscribe` once, get RUG/DANGER alerts from any node on the network. No bot setup required
 
 ---
 
@@ -72,13 +72,13 @@ Add your API keys and your node scans any token live, then automatically publish
 
 | Chain | Data Sources |
 |-------|-------------|
-| Ethereum | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
-| BNB Chain | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
-| Polygon | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
-| Arbitrum | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
-| Base | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
-| Optimism | GoPlus · DexScreener · Etherscan V2 · Moralis · CoinGecko |
-| Solana | Helius · DexScreener · CoinGecko |
+| Ethereum | GoPlus · DexScreener · Etherscan V2 · Ankr · CoinPaprika |
+| BNB Chain | GoPlus · DexScreener · Etherscan V2 · Ankr · CoinPaprika |
+| Polygon | GoPlus · DexScreener · Etherscan V2 · Ankr · CoinPaprika |
+| Arbitrum | GoPlus · DexScreener · Etherscan V2 · Ankr · CoinPaprika |
+| Base | GoPlus · DexScreener · Etherscan V2 · Ankr · CoinPaprika |
+| Optimism | GoPlus · DexScreener · Etherscan V2 · Ankr · CoinPaprika |
+| Solana | Helius · DexScreener · CoinPaprika |
 | Bitcoin (TAP Protocol) | Local tap-reader full node |
 
 ---
@@ -87,48 +87,49 @@ Add your API keys and your node scans any token live, then automatically publish
 
 ### Quickest way — Pear App
 
-Install [Pear Runtime](https://pears.com), then:
+Install [Pear Runtime](https://pears.com) from pears.com, then run:
 
 ```bash
 pear run pear://cx8ohu8zmgg6cijjfkzinu4o1b4jpnhjsgfmmsyhotjn1x8zbego
 ```
 
-First launch downloads and sets everything up automatically. See the [Pear Terminal App](#pear-terminal-app) section below for details.
+First launch sets everything up automatically. See the [Pear Terminal App](#pear-terminal-app) section for full details.
 
 ---
 
-### Manual install — Peer Mode (no API keys)
+### Manual — Peer Mode (no API keys required)
 
 ```bash
 git clone https://github.com/onchaindude/trac-sentinel.git
 cd trac-sentinel
 npm install && npm run build
-node apps/backend/dist/index.js
+NODE_ENV=production node apps/backend/dist/index.js
 ```
 
-The backend prints the URL in your terminal (auto-detects a free port starting at 4000). Open it — your node connects to the Trac P2P Network and receives results from other nodes automatically.
+Your terminal will print the URL (auto-detects a free port starting at 4000). Open it in your browser — your node connects to the Trac P2P Network automatically.
 
 ---
 
-### Manual install — Full Node Mode (with API keys)
+### Manual — Full Node Mode (live scanning)
 
 ```bash
 git clone https://github.com/onchaindude/trac-sentinel.git
 cd trac-sentinel
 npm install
 
+# Copy the config template and fill in your API keys
 cp apps/backend/.env.example apps/backend/.env
-# Edit .env and add your API keys
+# edit apps/backend/.env — see API Keys section below
 
-# Optional: local AI summaries
-# Install Ollama from https://ollama.ai, then:
+# Optional: install Ollama for AI summaries
+# Download from https://ollama.ai, then:
 ollama pull qwen2.5:7b
 
 npm run build
-node apps/backend/dist/index.js
+NODE_ENV=production node apps/backend/dist/index.js
 ```
 
-The backend will print the URL in your terminal (auto-detects a free port starting at 4000). Open that URL in your browser.
+Your terminal will print the URL. Open it — your node scans live and shares results with the P2P network.
 
 ---
 
@@ -136,23 +137,45 @@ The backend will print the URL in your terminal (auto-detects a free port starti
 
 ```bash
 npm run dev
-# Backend:  http://localhost:4000
-# Frontend: http://localhost:5173 (hot reload)
+# Backend + API: http://localhost:4000
+# Frontend (hot reload): http://localhost:5173
 ```
 
 ---
 
 ## API Keys
 
-All services have a free tier. Keys stay on your machine and are never shared.
+Only 3 keys are needed for Full Node mode. All are free. Ankr and CoinPaprika require no keys at all.
 
-| Service | Purpose | Sign Up |
-|---------|---------|---------|
-| [Etherscan](https://etherscan.io/apis) | EVM contract + deployer data | Free |
-| [GoPlus](https://gopluslabs.io) | Honeypot + contract safety | Free |
-| [Helius](https://helius.dev) | Solana token + holder data | Free · 100k req/day |
-| [Moralis](https://moralis.io) | Token metadata + holder counts | Free |
-| [CoinGecko](https://www.coingecko.com/en/api) | Price + market cap | Free · 30 req/min |
+| Service | Purpose | Free? | Sign Up |
+|---------|---------|-------|---------|
+| [Etherscan](https://etherscan.io/apis) | EVM contract + deployer data | Free tier | Required |
+| [GoPlus](https://gopluslabs.io) | Honeypot + contract safety | Free tier | Required |
+| [Helius](https://helius.dev) | Solana token + holder data | Free · 100k req/day | For Solana |
+| Ankr | Token metadata + holder counts | Completely free, no key | — |
+| CoinPaprika | Price + market cap | Completely free, no key | — |
+
+Keys stay on your machine and are never shared with anyone.
+
+---
+
+## Local AI (Ollama)
+
+TracSentinel uses [Ollama](https://ollama.ai) to generate human-readable summaries for each scan. It runs entirely on your hardware — no data leaves your machine.
+
+**Ollama is optional.** The scanner works fully without it — AI summaries will just be omitted.
+
+**Default model:** `qwen2.5:7b` (~4.7 GB) — reliable, accurate JSON output.
+
+**Use your own model** by setting `OLLAMA_MODEL` in your `.env`:
+
+```env
+OLLAMA_MODEL=llama3.2:3b    # lighter, faster
+OLLAMA_MODEL=mistral:7b     # solid alternative
+OLLAMA_MODEL=qwen2.5:3b     # smaller qwen
+```
+
+Any model in your `ollama list` will work. TracSentinel respects whatever you have configured.
 
 ---
 
@@ -161,7 +184,7 @@ All services have a free tier. Keys stay on your machine and are never shared.
 No setup required. The community bot is already running.
 
 1. Open **[@TracSentinelBot](https://t.me/TracSentinelBot)** on Telegram
-2. Send `/subscribe` to receive RUG and DANGER alerts from the P2P network
+2. Send `/subscribe` — receive RUG and DANGER alerts from any node on the P2P network
 3. Or paste any contract address / TAP ticker for an on-demand scan
 
 | Command | Description |
@@ -188,11 +211,48 @@ Get your SC-Bridge credentials at [tracsystems.io](https://tracsystems.io).
 
 ---
 
+## Pear Terminal App
+
+TracSentinel is published on the Pear Network. If you have [Pear Runtime](https://pears.com) installed, this is the simplest way to run it — no cloning, no building, nothing else needed.
+
+**Step 1 — Install Pear Runtime** (one time only)
+
+Go to [pears.com](https://pears.com) and follow the install guide for your OS.
+
+**Step 2 — Run**
+
+```bash
+pear run pear://cx8ohu8zmgg6cijjfkzinu4o1b4jpnhjsgfmmsyhotjn1x8zbego
+```
+
+**What happens on first launch** (~5–10 min, one time only):
+1. Downloads TracSentinel source from GitHub
+2. Installs dependencies and builds
+3. Installs Ollama if not already on your system (skipped if you have it)
+4. Downloads `qwen2.5:7b` — only if you don't already have an Ollama model configured
+5. Shows you where to add API keys, then starts
+
+Every launch after that is instant. Your browser opens automatically. The terminal shows your port.
+
+**Already have Ollama?** TracSentinel uses whatever model is set in your `.env`. Set `OLLAMA_MODEL=your-preferred-model` and it won't download anything.
+
+**Adding API keys** (optional — enables live scanning)
+
+Your config file lives at:
+```
+~/.config/trac-sentinel/repo/apps/backend/.env
+```
+Edit it to add your API keys. Without them, the node runs in Peer Mode and still receives P2P results from the network.
+
+**Updates** — re-run the same `pear run` command. Pear downloads the latest version automatically.
+
+---
+
 ## Bitcoin TAP Protocol
 
-Scanning TAP Protocol tokens (Bitcoin Ordinals) requires a local [tap-reader](https://github.com/Trac-Systems/tap-reader) node.
+Scanning TAP Protocol tokens (Bitcoin Ordinals) requires a local [tap-reader](https://github.com/Trac-Systems/tap-reader) node. This is optional — all other chains work without it.
 
-**Requirements:** ~150GB SSD, 8GB RAM
+**Requirements:** ~150 GB SSD, 8 GB RAM, Node.js 20+
 
 ```bash
 git clone https://github.com/Trac-Systems/tap-reader
@@ -204,11 +264,11 @@ Add to `.env`:
 TAP_READER_URL=http://localhost:5099
 ```
 
-Once synced, scan any TAP ticker (e.g. `TRAC`, `NAT`) directly from the UI. Initial sync takes hours to days depending on your connection.
+Once synced, scan any TAP ticker (e.g. `TRAC`, `NAT`) directly from the UI. Initial sync takes hours to days.
 
 ---
 
-## Run in the Background (24/7)
+## Run 24/7 in the Background
 
 ```bash
 npm install -g pm2
@@ -218,51 +278,13 @@ pm2 save && pm2 startup
 
 ---
 
-## Pear Terminal App
-
-TracSentinel is published on the Pear Network. If you have [Pear Runtime](https://pears.com) installed, this is the simplest way to run it — no cloning, no building, nothing.
-
-**Step 1 — Install Pear Runtime** (one time only)
-
-Go to [pears.com](https://pears.com) and follow the install guide for your OS.
-
-**Step 2 — Run TracSentinel**
-
-```bash
-pear run pear://cx8ohu8zmgg6cijjfkzinu4o1b4jpnhjsgfmmsyhotjn1x8zbego
-```
-
-**What happens on first launch (~5–10 min, one time only):**
-1. Downloads the TracSentinel source from GitHub
-2. Runs `npm install` + builds the backend
-3. Installs [Ollama](https://ollama.ai) if not already on your system (skipped if you have it)
-4. Downloads `qwen2.5:7b` (~4.7 GB) — only if you don't already have a model configured
-5. Shows you where to add API keys, then starts
-
-> **Already have Ollama?** Set `OLLAMA_MODEL=your-model` in your `.env` file — TracSentinel will use whatever model you have installed. Any Ollama-compatible model works.
-
-After setup, every launch is instant. Your browser opens automatically. The terminal shows your port — use that URL.
-
-**API keys (optional — enables live scanning)**
-
-After first run, your config file is at:
-```
-~/.config/trac-sentinel/repo/apps/backend/.env
-```
-Add your API keys there to enable live scanning. Without them, the node runs in Peer Mode and still receives P2P scan results from the network — no API keys needed for that.
-
-**Updating**
-
-Just re-run the same `pear run` command — it pulls the latest version automatically.
-
----
-
 ## Docker
 
 ```bash
 docker compose up
-# Backend + frontend on http://localhost:4000
 ```
+
+The backend auto-detects a free port and prints the URL to the terminal.
 
 ---
 
@@ -283,9 +305,9 @@ trac-sentinel/
 │   │           ├── goplus.ts      # Honeypot + contract safety
 │   │           ├── dexscreener.ts # Liquidity + trading pairs
 │   │           ├── etherscan.ts   # EVM contract + deployer info
-│   │           ├── moralis.ts     # Token metadata + holders
+│   │           ├── ankr.ts        # Token metadata + holders (free, no key)
 │   │           ├── helius.ts      # Solana token + holder data
-│   │           ├── coingecko.ts   # Price + market cap
+│   │           ├── coinpaprika.ts # Price + market cap (free, no key)
 │   │           ├── ollama.ts      # Local AI narrative generation
 │   │           └── tapScanner.ts  # Bitcoin TAP Protocol scanner
 │   ├── frontend/                  # React · Vite · TypeScript (no UI framework)
@@ -300,7 +322,7 @@ trac-sentinel/
 │   │       └── hooks/
 │   │           ├── useSentinel.ts  # WebSocket + API state
 │   │           └── useWatchlist.ts
-│   └── pear/                      # Pear Runtime desktop launcher
+│   └── pear/                      # Pear Runtime terminal launcher
 ├── Dockerfile
 └── docker-compose.yml
 ```
