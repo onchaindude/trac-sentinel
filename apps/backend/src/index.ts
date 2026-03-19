@@ -334,10 +334,16 @@ async function autoSetupIntercom(): Promise<void> {
 
   process.env.SC_BRIDGE_URL = 'ws://127.0.0.1:49222';
 
-  // Start Intercom (always — it needs to run on every startup)
+  // Kill any stale process on the SC-Bridge port (ensures fresh token match)
+  try {
+    execFileSync('sh', ['-c', 'lsof -ti:49222 | xargs kill -9 2>/dev/null || true'], { stdio: 'ignore' });
+    await new Promise(r => setTimeout(r, 300));
+  } catch { /* ignore */ }
+
+  // Start Intercom as a child process (no --detached — avoids sidecar reusing cached token)
   try {
     const proc = spawnProcess(pearBin, [
-      'run', '--detached', intercomDir,
+      'run', intercomDir,
       '--peer-store-name',       'trac-sentinel-peer',
       '--sc-bridge',
       '--sc-bridge-token',       token,
