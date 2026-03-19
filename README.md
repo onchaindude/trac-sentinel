@@ -85,15 +85,17 @@ Add your API keys and your node scans any token live, then automatically publish
 
 ## Getting Started
 
-### Quickest way — Pear App
-
-Install [Pear Runtime](https://pears.com) from pears.com, then run:
+### Quickest way — one-line install
 
 ```bash
-pear run pear://9si3o6qk1wz7hbwp5x5wghm4n839gy3wworexhatwg5iu5efxmuy
+curl -fsSL https://raw.githubusercontent.com/onchaindude/trac-sentinel/main/install.sh | sh
 ```
 
-First launch sets everything up automatically. See the [Pear Terminal App](#pear-terminal-app) section for full details.
+Downloads, builds, and sets everything up automatically — including the Ollama prompt. Then start it:
+
+```bash
+NODE_ENV=production node ~/.config/trac-sentinel/repo/apps/backend/dist/index.js
+```
 
 ---
 
