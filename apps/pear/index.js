@@ -87,7 +87,56 @@ async function bootstrap() {
     if (fs.existsSync(example)) fs.copyFileSync(example, ENV_FILE);
   }
 
+  // ── Install Ollama if not present ────────────────────────────────────────────
+  let ollamaInstalled = false;
+  try { execFileSync('ollama', ['--version'], { stdio: 'ignore' }); ollamaInstalled = true; }
+  catch {}
+
+  if (!ollamaInstalled) {
+    console.log(cyan('\n  ⚙ Installing Ollama (local AI)…'));
+    if (process.platform === 'win32') {
+      console.log(yellow('  → Windows: download Ollama from https://ollama.ai and re-run.'));
+      console.log(yellow('    AI summaries will be disabled until Ollama is installed.\n'));
+    } else {
+      try {
+        // Official Ollama install script — works on macOS and Linux
+        execFileSync('sh', ['-c', 'curl -fsSL https://ollama.ai/install.sh | sh'], { stdio: 'inherit' });
+        ollamaInstalled = true;
+      } catch {
+        console.log(yellow('  → Could not auto-install Ollama. Download from https://ollama.ai'));
+        console.log(yellow('    AI summaries will be disabled until installed.\n'));
+      }
+    }
+  }
+
+  if (ollamaInstalled) {
+    try {
+      // Check if model already pulled
+      const models = execFileSync('ollama', ['list'], { encoding: 'utf8' });
+      if (!models.includes('qwen2.5:7b')) {
+        console.log(cyan('\n  ⚙ Downloading AI model (qwen2.5:7b, ~4.7GB — one time only)…'));
+        execFileSync('ollama', ['pull', 'qwen2.5:7b'], { stdio: 'inherit' });
+      }
+    } catch {
+      console.log(yellow('  → Could not pull AI model — AI summaries will be limited.\n'));
+    }
+  }
+
   console.log(green('\n  ✓ Setup complete!\n'));
+
+  // ── API key prompt ────────────────────────────────────────────────────────────
+  console.log(bold('  ┌─────────────────────────────────────────────────────────────────┐'));
+  console.log(bold('  │  OPTIONAL: Add API keys to enable live token scanning           │'));
+  console.log(bold('  │  Without keys, you run in Peer Mode (P2P results only).         │'));
+  console.log(bold('  │                                                                 │'));
+  console.log(bold('  │  Edit this file with your API keys:                             │'));
+  console.log(bold(`  │  ${ENV_FILE.slice(0, 65).padEnd(65)}│`));
+  console.log(bold('  │                                                                 │'));
+  console.log(bold('  │  Required for live scanning:                                    │'));
+  console.log(bold('  │    ETHERSCAN_API_KEY  → etherscan.io/apis (free)                │'));
+  console.log(bold('  │    GOPLUS_APP_KEY     → gopluslabs.io (free)                   │'));
+  console.log(bold('  │    HELIUS_API_KEY     → helius.dev (free, Solana)               │'));
+  console.log(bold('  └─────────────────────────────────────────────────────────────────┘\n'));
 }
 
 // ── Find a free port (4000–4019) ──────────────────────────────────────────────

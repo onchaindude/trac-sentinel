@@ -106,7 +106,7 @@ npm install && npm run build
 node apps/backend/dist/index.js
 ```
 
-Open **http://localhost:4000** — your node connects to the Trac P2P Network and receives scan results from other nodes automatically.
+The backend prints the URL in your terminal (auto-detects a free port starting at 4000). Open it — your node connects to the Trac P2P Network and receives results from other nodes automatically.
 
 ---
 
@@ -128,7 +128,7 @@ npm run build
 node apps/backend/dist/index.js
 ```
 
-Open **http://localhost:4000**. Your node scans live and shares results with the P2P network.
+The backend will print the URL in your terminal (auto-detects a free port starting at 4000). Open that URL in your browser.
 
 ---
 
@@ -232,21 +232,26 @@ Go to [pears.com](https://pears.com) and follow the install guide for your OS.
 pear run pear://cx8ohu8zmgg6cijjfkzinu4o1b4jpnhjsgfmmsyhotjn1x8zbego
 ```
 
-On first launch, TracSentinel downloads and builds itself automatically (~2 minutes). Every launch after that is instant.
+**What happens on first launch (~5–10 min, one time only):**
+1. Downloads the TracSentinel source from GitHub
+2. Runs `npm install` + builds the backend
+3. Installs [Ollama](https://ollama.ai) (local AI) if not already on your system
+4. Downloads the `qwen2.5:7b` AI model (~4.7 GB)
+5. Shows you where to add API keys, then starts
 
-The terminal shows live logs. Your browser opens automatically. Press `Ctrl+C` to stop.
+After setup, every launch is instant. Your browser opens automatically. The terminal shows your port — use that URL.
 
-**Adding API keys (optional — enables live scanning)**
+**API keys (optional — enables live scanning)**
 
-After the first run, your config file is created at:
+After first run, your config file is at:
 ```
 ~/.config/trac-sentinel/repo/apps/backend/.env
 ```
-Edit it to add your API keys. Without them, the node runs in Peer Mode and still receives P2P scan results from the network.
+Add your API keys there to enable live scanning. Without them, the node runs in Peer Mode and still receives P2P scan results from the network — no API keys needed for that.
 
 **Updating**
 
-Re-run the same `pear run` command. If a new version is available, Pear downloads it automatically.
+Just re-run the same `pear run` command — it pulls the latest version automatically.
 
 ---
 
