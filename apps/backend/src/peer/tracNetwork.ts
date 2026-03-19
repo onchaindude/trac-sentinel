@@ -3,8 +3,10 @@ import { EventEmitter } from 'events';
 import { logger } from '../logger.js';
 import type { AnalysisResult } from '../analyzer.js';
 
-const SC_BRIDGE_URL   = process.env.SC_BRIDGE_URL   ?? 'ws://127.0.0.1:49222';
-const SC_BRIDGE_TOKEN = process.env.SC_BRIDGE_TOKEN ?? '';
+const SC_BRIDGE_URL = process.env.SC_BRIDGE_URL ?? 'ws://127.0.0.1:49222';
+// Token is read lazily at auth time so it works even when process.env is
+// populated after module initialization (e.g. autoSetupIntercom)
+const getToken = () => process.env.SC_BRIDGE_TOKEN ?? '';
 const CHANNEL         = 'tracsentinel';
 const VALID_CHAINS    = new Set(['eth', 'bsc', 'polygon', 'arbitrum', 'base', 'optimism', 'solana', 'tap']);
 const MAX_PAYLOAD_AGE  = 10 * 60 * 1000; // reject results older than 10 minutes
@@ -115,7 +117,7 @@ class TracNetwork extends EventEmitter {
       case 'hello':
         // Store our peer identity then authenticate
         this.localPeerId = (msg.peer as string) ?? null;
-        this._send({ type: 'auth', token: SC_BRIDGE_TOKEN });
+        this._send({ type: 'auth', token: getToken() });
         break;
 
       case 'auth_ok':

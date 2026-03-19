@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './env.js'; // must be first — loads .env from the backend dir regardless of CWD
 import express          from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
