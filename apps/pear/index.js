@@ -3,6 +3,7 @@ import path          from 'path';
 import fs            from 'fs';
 import net           from 'net';
 import os            from 'os';
+import crypto        from 'crypto';
 import { spawn, execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
@@ -24,6 +25,7 @@ const isDevMode      = fs.existsSync(path.join(DEV_BACKEND, 'dist/index.js'));
 // Standalone install location (~/.config/trac-sentinel/)
 const INSTALL_DIR    = path.join(os.homedir(), '.config', 'trac-sentinel');
 const REPO_DIR       = path.join(INSTALL_DIR, 'repo');
+const INTERCOM_DIR   = path.join(INSTALL_DIR, 'intercom');
 const BACKEND_DIR    = isDevMode ? DEV_BACKEND : path.join(REPO_DIR, 'apps/backend');
 const BACKEND_ENTRY  = path.join(BACKEND_DIR, 'dist/index.js');
 const ENV_FILE       = path.join(BACKEND_DIR, '.env');
@@ -150,6 +152,110 @@ async function bootstrap() {
   console.log(bold('  └─────────────────────────────────────────────────────────────────┘\n'));
 }
 
+// ── Intercom SC-Bridge: auto-setup P2P ────────────────────────────────────────
+function findPearBin() {
+  const candidates = process.platform === 'darwin'
+    ? [
+        path.join(os.homedir(), 'Library', 'Application Support', 'pear', 'bin', 'pear'),
+        path.join(os.homedir(), '.config', 'pear', 'bin', 'pear'),
+      ]
+    : [
+        path.join(os.homedir(), '.config', 'pear', 'bin', 'pear'),
+        '/usr/local/bin/pear',
+      ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  // fall back to PATH
+  try { execFileSync('pear', ['--version'], { stdio: 'ignore' }); return 'pear'; }
+  catch {}
+  return null;
+}
+
+function readEnv(file) {
+  return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+}
+
+function writeEnvKey(file, key, value) {
+  let text = readEnv(file);
+  const re = new RegExp(`^${key}=.*$`, 'm');
+  if (re.test(text)) {
+    text = text.replace(re, `${key}=${value}`);
+  } else {
+    text = text.trimEnd() + `\n${key}=${value}\n`;
+  }
+  fs.writeFileSync(file, text);
+}
+
+let intercomProc = null;
+
+async function setupIntercom() {
+  if (isDevMode) return; // dev: assume SC-Bridge managed manually
+
+  const pearBin = findPearBin();
+  if (!pearBin) {
+    console.log(yellow('  → pear binary not found — P2P sharing disabled'));
+    return;
+  }
+
+  // Clone or update Intercom
+  try {
+    if (fs.existsSync(path.join(INTERCOM_DIR, 'package.json'))) {
+      // already cloned — silent update attempt
+      try {
+        execFileSync('git', ['pull', '--ff-only'], { cwd: INTERCOM_DIR, stdio: 'ignore' });
+      } catch {}
+    } else {
+      console.log(cyan('  ↓ Setting up P2P bridge (Trac Intercom)…'));
+      fs.mkdirSync(INSTALL_DIR, { recursive: true });
+      execFileSync('git', [
+        'clone', '--depth=1',
+        'https://github.com/Trac-Systems/intercom.git',
+        INTERCOM_DIR,
+      ], { stdio: 'inherit' });
+      console.log(green('  ✓ P2P bridge ready'));
+    }
+  } catch {
+    console.log(yellow('  → Could not set up Intercom — P2P sharing disabled'));
+    return;
+  }
+
+  // Ensure SC_BRIDGE_TOKEN exists in .env
+  const envText = readEnv(ENV_FILE);
+  const tokenMatch = envText.match(/^SC_BRIDGE_TOKEN=(.+)$/m);
+  const token = (tokenMatch && tokenMatch[1].trim()) || crypto.randomBytes(32).toString('hex');
+
+  if (!tokenMatch || !tokenMatch[1].trim()) {
+    writeEnvKey(ENV_FILE, 'SC_BRIDGE_URL', 'ws://127.0.0.1:49222');
+    writeEnvKey(ENV_FILE, 'SC_BRIDGE_TOKEN', token);
+  }
+
+  // Start Intercom as background process
+  try {
+    intercomProc = spawn(pearBin, [
+      'run', INTERCOM_DIR,
+      '--peer-store-name', 'trac-sentinel-peer',
+      '--sc-bridge',
+      '--sc-bridge-token', token,
+      '--sc-bridge-port',  '49222',
+      '--sidechannel',     'tracsentinel',
+      '--sidechannel-auto-join', '1',
+    ], {
+      cwd:      INTERCOM_DIR,
+      stdio:    'ignore',
+      detached: false,
+    });
+    intercomProc.on('error', () => { intercomProc = null; });
+    intercomProc.on('exit', code => {
+      if (!stopping) console.log(yellow(`  [intercom] exited (${code})`));
+      intercomProc = null;
+    });
+    console.log(green('  ✓ P2P network connecting…'));
+  } catch {
+    console.log(yellow('  → Intercom failed to start — P2P sharing disabled'));
+  }
+}
+
 // ── Find a free port (4000–4019) ──────────────────────────────────────────────
 async function findFreePort(start = 4000) {
   return new Promise((resolve, reject) => {
@@ -188,6 +294,7 @@ function openBrowser(url) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 await bootstrap();
+await setupIntercom();
 
 // Show .env path hint on first run
 if (!isDevMode && !fs.existsSync(ENV_FILE.replace('.env', '.env.seen'))) {
@@ -267,7 +374,6 @@ if (!ready) {
 const url = `http://localhost:${port}`;
 console.log('');
 console.log(green(`  ✓ TracSentinel running → ${bold(url)}`));
-console.log(green('  ✓ P2P network connecting…'));
 console.log('');
 console.log(cyan('  Opening browser…'));
 console.log(cyan('  Press Ctrl+C to stop.\n'));
@@ -279,6 +385,7 @@ function shutdown() {
   stopping = true;
   console.log(yellow('\n  Shutting down…'));
   currentBackend?.kill('SIGTERM');
+  intercomProc?.kill('SIGTERM');
   setTimeout(() => Pear.exit(0), 2_000);
 }
 process.on('SIGINT',  shutdown);

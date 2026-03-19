@@ -215,13 +215,13 @@ NAT tap
 
 ## Trac P2P Network
 
-TracSentinel connects to the [Trac Network](https://tracsystems.io) via the Intercom SC-Bridge — a local WebSocket gateway that bridges your node to the Trac P2P network.
+TracSentinel connects to the [Trac Network](https://tracsystems.io) via [Trac Intercom](https://github.com/Trac-Systems/intercom) — a local P2P bridge that links your node to the network.
 
-**Without SC-Bridge:** TracSentinel runs as a local-only scanner. All features still work — scanning, AI summaries, Telegram bot, history, watchlist — just no P2P sharing with other nodes.
+**When running via Pear:** P2P is set up automatically on first launch. No configuration needed — Intercom is cloned, started, and wired up behind the scenes.
 
-**With SC-Bridge:** Your node joins the `tracsentinel` P2P channel. Completed scans are published to the network automatically, and results from other nodes load instantly without API calls.
+**When running manually:** P2P is optional. Without it, TracSentinel works as a local-only scanner — scanning, AI summaries, Telegram bot, history, and watchlist all work. To enable P2P, run [Trac Intercom](https://github.com/Trac-Systems/intercom) alongside TracSentinel and set `SC_BRIDGE_URL` + `SC_BRIDGE_TOKEN` in your `.env`.
 
-P2P integration requires [Trac Intercom](https://github.com/Trac-Systems/intercom) — a Pear-based P2P framework from Trac Systems — running alongside TracSentinel. Follow the setup instructions in the [Intercom repo](https://github.com/Trac-Systems/intercom) to get connected.
+**What P2P adds:** Your node joins the `tracsentinel` channel. Completed scans are published to the network automatically, and results from other nodes arrive instantly without any API calls.
 
 ---
 
