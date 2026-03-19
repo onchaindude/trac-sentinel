@@ -344,12 +344,14 @@ async function autoSetupIntercom(): Promise<void> {
   try {
     const proc = spawnProcess(pearBin, [
       'run', intercomDir,
-      '--peer-store-name',       'trac-sentinel-peer',
+      '--peer-store-name',              'trac-sentinel-peer',
       '--sc-bridge',
-      '--sc-bridge-token',       token,
-      '--sc-bridge-port',        '49222',
-      '--sidechannel',           'tracsentinel',
-      '--sidechannel-auto-join', '1',
+      '--sc-bridge-token',              token,
+      '--sc-bridge-port',               '49222',
+      '--sidechannel',                  'tracsentinel',
+      '--sidechannel-auto-join',        '1',
+      '--sidechannel-pow',              '0',  // no hashcash PoW — open broadcast channel
+      '--sidechannel-welcome-required', '0',  // no signed welcome — any peer can join
     ], { stdio: ['ignore', 'pipe', 'pipe'], detached: false });
 
     proc.stdout?.on('data', (d: Buffer) => {
