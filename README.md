@@ -215,20 +215,20 @@ NAT tap
 
 ## Trac P2P Network
 
-TracSentinel connects to the [Trac Network](https://tracsystems.io) via the Intercom SC-Bridge — a WebSocket gateway that lets nodes share scan results with each other in real time.
+TracSentinel connects to the [Trac Network](https://tracsystems.io) via the Intercom SC-Bridge — a local WebSocket gateway that bridges your node to the Trac P2P network.
 
-**Without SC-Bridge credentials:** TracSentinel runs as a local-only scanner. All features work — scanning, Telegram bot, history, watchlist — just no P2P sharing with other nodes.
+**Without SC-Bridge:** TracSentinel runs as a local-only scanner. All features still work — scanning, AI summaries, Telegram bot, history, watchlist — just no P2P sharing with other nodes.
 
-**With SC-Bridge credentials:** Your node joins the `tracsentinel` P2P channel. Completed scans are published to the network automatically, and results from other nodes load instantly without any API calls.
+**With SC-Bridge:** Your node joins the `tracsentinel` P2P channel. Completed scans are published to the network automatically, and results from other nodes load instantly without API calls.
 
-To connect to the P2P network, add to your `.env`:
+P2P integration requires the [Trac Intercom](https://tracsystems.io) SC-Bridge running locally alongside TracSentinel. Intercom is a Pear-based P2P framework from Trac Systems. Once running, you configure TracSentinel to connect to it:
 
 ```env
 SC_BRIDGE_URL=ws://127.0.0.1:49222
-SC_BRIDGE_TOKEN=your_token_here
+SC_BRIDGE_TOKEN=your_sc_bridge_token
 ```
 
-SC-Bridge credentials are issued by the Trac Network team. Join the community at [tracsystems.io](https://tracsystems.io) to get yours.
+See [tracsystems.io](https://tracsystems.io) for Intercom setup instructions.
 
 ---
 
