@@ -264,10 +264,8 @@ if (process.env.NODE_ENV === 'production') {
   app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
 }
 
-// ── Auto-setup Trac Intercom for P2P (runs on every startup if not yet configured) ──
+// ── Auto-setup Trac Intercom for P2P (runs on every startup) ────────────────
 async function autoSetupIntercom(): Promise<void> {
-  if (process.env.SC_BRIDGE_URL && process.env.SC_BRIDGE_TOKEN) return; // already configured
-
   // Find pear binary
   const pearCandidates = process.platform === 'darwin'
     ? [
@@ -305,25 +303,27 @@ async function autoSetupIntercom(): Promise<void> {
     }
   }
 
-  // Generate token, set in process.env, persist to .env for future restarts
-  const token   = crypto.randomBytes(32).toString('hex');
-  const envFile = path.join(__dirname, '../.env'); // apps/backend/.env
+  // Reuse existing token if already configured, otherwise generate a new one
+  const envFile = path.join(__dirname, '../.env');
+  let token = process.env.SC_BRIDGE_TOKEN ?? '';
+  if (!token) {
+    token = crypto.randomBytes(32).toString('hex');
+    process.env.SC_BRIDGE_TOKEN = token;
+    try {
+      let text = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '';
+      const upsert = (key: string, val: string) => {
+        const re = new RegExp(`^${key}=.*$`, 'm');
+        text = re.test(text) ? text.replace(re, `${key}=${val}`) : text.trimEnd() + `\n${key}=${val}\n`;
+      };
+      upsert('SC_BRIDGE_URL', 'ws://127.0.0.1:49222');
+      upsert('SC_BRIDGE_TOKEN', token);
+      fs.writeFileSync(envFile, text);
+    } catch { /* non-fatal */ }
+  }
 
-  process.env.SC_BRIDGE_URL   = 'ws://127.0.0.1:49222';
-  process.env.SC_BRIDGE_TOKEN = token;
+  process.env.SC_BRIDGE_URL = 'ws://127.0.0.1:49222';
 
-  try {
-    let text = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : '';
-    const upsert = (key: string, val: string) => {
-      const re = new RegExp(`^${key}=.*$`, 'm');
-      text = re.test(text) ? text.replace(re, `${key}=${val}`) : text.trimEnd() + `\n${key}=${val}\n`;
-    };
-    upsert('SC_BRIDGE_URL', 'ws://127.0.0.1:49222');
-    upsert('SC_BRIDGE_TOKEN', token);
-    fs.writeFileSync(envFile, text);
-  } catch { /* non-fatal — token already set in process.env */ }
-
-  // Start Intercom
+  // Start Intercom (always — it needs to run on every startup)
   try {
     const proc = spawnProcess(pearBin, [
       'run', intercomDir,
