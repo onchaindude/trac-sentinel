@@ -112,6 +112,12 @@ class TracNetwork extends EventEmitter {
   }
 
   private _handle(msg: BridgeMsg, rawSize = 0) {
+    // Log all unhandled message types for debugging
+    const KNOWN = new Set(['hello','auth_ok','joined','sidechannel_message','error']);
+    if (!KNOWN.has(msg.type)) {
+      logger.debug({ type: msg.type, msg }, 'TracNetwork: SC-Bridge message (unhandled type)');
+    }
+
     switch (msg.type) {
 
       case 'hello':
@@ -136,6 +142,7 @@ class TracNetwork extends EventEmitter {
         break;
 
       case 'sidechannel_message':
+        logger.info({ channel: msg.channel, from: msg.from }, 'TracNetwork: sidechannel_message received');
         if (msg.channel === CHANNEL) {
           const payload = msg.message as unknown;
           if (isValidPayload(payload, rawSize)) {
@@ -143,11 +150,11 @@ class TracNetwork extends EventEmitter {
             const dedupKey = `${nodeId}:${payload.chain}:${payload.address}`;
             const lastSeen = this.peerDedup.get(dedupKey) ?? 0;
             if (Date.now() - lastSeen < PEER_DEDUP_MS) {
-              logger.debug({ address: payload.address, from: nodeId }, 'TracNetwork: dedup — dropped repeated peer result');
+              logger.info({ address: payload.address, from: nodeId }, 'TracNetwork: dedup — dropped repeated peer result');
               break;
             }
             this.peerDedup.set(dedupKey, Date.now());
-            logger.debug({ address: payload.address, chain: payload.chain, from: nodeId },
+            logger.info({ address: payload.address, chain: payload.chain, from: nodeId },
               'TracNetwork: received P2P scan result');
             this.emit('scan', payload, nodeId);
           } else {

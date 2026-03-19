@@ -352,8 +352,16 @@ async function autoSetupIntercom(): Promise<void> {
       '--sidechannel-auto-join', '1',
     ], { stdio: ['ignore', 'pipe', 'pipe'], detached: false });
 
+    proc.stdout?.on('data', (d: Buffer) => {
+      const line = d.toString().trim();
+      if (line) logger.debug({ intercom: line }, 'Intercom stdout');
+    });
     let startupErr = '';
-    proc.stderr?.on('data', (d: Buffer) => { startupErr += d.toString(); });
+    proc.stderr?.on('data', (d: Buffer) => {
+      const line = d.toString().trim();
+      if (line) logger.debug({ intercom: line }, 'Intercom stderr');
+      startupErr += d.toString();
+    });
     proc.on('close', (code) => {
       if (code !== 0 && startupErr) {
         logger.warn({ code, stderr: startupErr.slice(0, 300) }, 'Intercom exited with error');
